@@ -3,7 +3,7 @@ const path = require('path');
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-const outputPath = process.env.SUPABASE_CONFIG_OUTPUT || path.join(__dirname, '..', 'supabase-config.js');
+const outputPath = process.env.SUPABASE_CONFIG_OUTPUT || path.join(process.cwd(), 'supabase-config.js');
 
 if (!supabaseUrl || !supabaseAnonKey) {
   if (fs.existsSync(outputPath)) {
