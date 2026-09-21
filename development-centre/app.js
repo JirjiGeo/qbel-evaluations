@@ -2,6 +2,7 @@ const libraryKey = 'qbel-development-library';
 const trainingKey = 'qbel-development-training';
 let resources = JSON.parse(localStorage.getItem(libraryKey) || '[]');
 let assignments = JSON.parse(localStorage.getItem(trainingKey) || '[]');
+let activeResourceCategory = 'Job descriptions';
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 function cloudClient() { return window.parent?.supabaseClient || window.supabaseClient || null; }
@@ -124,9 +125,8 @@ function closeResourcePreview() { const preview = $('#resourcePreview'); preview
 
 function renderResources() {
   const department = $('#libraryDepartment').value;
-  const category = $('#libraryCategory').value;
-  const filtered = resources.filter((resource) => (department === 'all' || resource.department === department) && (category === 'all' || resource.category === category));
-  $('#resourceList').innerHTML = filtered.length ? filtered.map((resource) => `<article class="resource-card"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><div><h3>${escapeHtml(resource.title)}</h3><p>${escapeHtml(resource.fileName)}</p><div class="resource-meta"><span class="resource-tag">${escapeHtml(resource.department)}</span><span class="resource-tag">${escapeHtml(resource.category)}</span></div></div><div><button class="row-action" data-preview-resource="${resource.id}" type="button">View</button><button class="row-action" data-delete-resource="${resource.id}" type="button">Delete</button></div></article>`).join('') : '<div class="empty-state">No resources match these filters. Add a job description, process, policy or course to begin.</div>';
+  const filtered = resources.filter((resource) => (department === 'all' || resource.department === department) && resource.category === activeResourceCategory);
+  $('#resourceList').innerHTML = filtered.length ? `<div class="resource-button-list">${filtered.map((resource) => `<article class="resource-card"><div><button class="resource-title-button" data-preview-resource="${resource.id}" type="button"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><span><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.fileName)} · ${escapeHtml(resource.department)}</small></span></button></div><button class="row-action" data-delete-resource="${resource.id}" type="button">Delete</button></article>`).join('')}</div>` : `<div class="empty-state">No ${escapeHtml(activeResourceCategory.toLowerCase())} match this department. Add one to begin.</div>`;
 }
 function renderAssignmentOptions() {
   const employeeOptions = employees().map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)} · ${escapeHtml(employee.department)}</option>`).join('');
@@ -134,8 +134,8 @@ function renderAssignmentOptions() {
   const currentProfileEmployee = $('#profileEmployeeSelect')?.value;
   $('#profileEmployeeSelect').innerHTML = employeeOptions || '<option value="">No employees found</option>';
   if (currentProfileEmployee && employees().some((employee) => employee.id === currentProfileEmployee)) $('#profileEmployeeSelect').value = currentProfileEmployee;
-  const resourceOptions = resources.filter((resource) => resource.category === 'Courses').map((resource) => `<option value="${escapeHtml(resource.id)}">${escapeHtml(resource.title)} · ${escapeHtml(resource.department)}</option>`).join('');
-  $('#assignmentResource').innerHTML = resourceOptions || '<option value="">Add a course resource first</option>';
+  const resourceOptions = resources.filter((resource) => ['Courses', 'Trainings'].includes(resource.category)).map((resource) => `<option value="${escapeHtml(resource.id)}">${escapeHtml(resource.title)} · ${escapeHtml(resource.department)}</option>`).join('');
+  $('#assignmentResource').innerHTML = resourceOptions || '<option value="">Add a course or training first</option>';
 }
 function renderTracker() {
   const employeeMap = new Map(employees().map((employee) => [employee.id, employee]));
@@ -161,12 +161,12 @@ function renderLearningProfile() {
 function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } }
 
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
+document.querySelectorAll('.resource-tab').forEach((tab) => tab.addEventListener('click', () => { activeResourceCategory = tab.dataset.resourceCategory; document.querySelectorAll('.resource-tab').forEach((item) => item.classList.toggle('active', item === tab)); closeResourcePreview(); renderResources(); }));
 $('#openResourceForm').addEventListener('click', () => openModal('resourceModal'));
 $('#openAssignmentForm').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#profileEmployeeSelect').addEventListener('change', renderLearningProfile);
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 $('#libraryDepartment').addEventListener('change', renderResources);
-$('#libraryCategory').addEventListener('change', renderResources);
 $('#resourceForm').addEventListener('submit', async (event) => { event.preventDefault(); const file = $('#resourceFile').files[0]; if (!file) return; const allowed = /\.(pdf|doc|docx|ppt|pptx)$/i.test(file.name); if (!allowed) { notify('Please upload a PDF, Word or PowerPoint file.'); return; } const resource = { id: `resource-${Date.now()}`, title: $('#resourceTitle').value.trim(), department: $('#resourceDepartment').value, category: $('#resourceCategory').value, fileName: file.name, fileType: fileType(file.name), dataUrl: await readFile(file), createdAt: new Date().toISOString() }; try { resources.unshift(await insertCloudResource(resource)); save(); renderResources(); renderAssignmentOptions(); closeModal('resourceModal'); event.target.reset(); notify('Resource added successfully.'); } catch (error) { notify('Resource could not be saved to Supabase.'); } });
 $('#assignmentForm').addEventListener('submit', async (event) => { event.preventDefault(); const selectedEmployees = Array.from($('#assignmentEmployee').selectedOptions).map((option) => option.value).filter(Boolean); const resourceId = $('#assignmentResource').value; if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course.'); return; } const assignmentsToCreate = selectedEmployees.map((employeeId) => ({ id: `training-${Date.now()}-${employeeId}`, employeeId, resourceId, assignedDate: new Date().toISOString().slice(0, 10), dueDate: $('#assignmentDue').value, status: $('#assignmentStatus').value })); try { const createdAssignments = await Promise.all(assignmentsToCreate.map((assignment) => insertCloudAssignment(assignment))); assignments.unshift(...createdAssignments); save(); renderTracker(); closeModal('assignmentModal'); event.target.reset(); notify(selectedEmployees.length > 1 ? 'Training assigned to selected employees.' : 'Training assigned successfully.'); } catch (error) { notify('Training could not be saved to Supabase.'); } });
 document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); if (client && !resourceButton.dataset.deleteResource.startsWith('resource-')) await client.from('development_resources').delete().eq('id', resourceButton.dataset.deleteResource); resources = resources.filter((resource) => resource.id !== resourceButton.dataset.deleteResource); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
