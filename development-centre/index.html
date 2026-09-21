@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QBEL | Development Centre</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="development-app">
+    <header class="development-hero">
+      <div><span class="eyebrow">People development</span><h1>Development Centre</h1><p>Organize learning resources and follow every employee's training journey.</p></div>
+      <div class="hero-mark">DC</div>
+    </header>
+    <nav class="section-tabs" aria-label="Development Centre sections">
+      <button class="section-tab active" data-view="library">Resource library</button>
+      <button class="section-tab" data-view="tracker">Training tracker</button>
+    </nav>
+
+    <section class="view active" id="libraryView">
+      <div class="view-heading"><div><span class="eyebrow">Knowledge library</span><h2>Department resources</h2></div><button class="primary-button" id="openResourceForm">+ Add resource</button></div>
+      <div class="library-layout">
+        <aside class="filter-panel"><label>Department<select id="libraryDepartment"><option value="all">All departments</option><option>HR</option><option>Operations</option><option>Procurement</option><option>Engineering</option><option>IT</option><option>Customer Service</option></select></label><label>Resource type<select id="libraryCategory"><option value="all">All resource types</option><option>Job descriptions</option><option>Processes</option><option>Policies</option><option>Courses</option></select></label></aside>
+        <div><div class="resource-list" id="resourceList"></div><div class="resource-preview" id="resourcePreview" hidden></div></div>
+      </div>
+    </section>
+
+    <section class="view" id="trackerView">
+      <div class="view-heading"><div><span class="eyebrow">Employee learning</span><h2>Training tracker</h2></div><button class="primary-button" id="openAssignmentForm">+ Assign training</button></div>
+      <div class="tracker-summary" id="trackerSummary"></div>
+      <section class="learning-profile"><div class="profile-heading"><div><span class="eyebrow">Employee profile</span><h3>Learning journey</h3></div><label>View employee<select id="profileEmployeeSelect"></select></label></div><div class="learning-columns"><div class="learning-column"><span class="learning-column-title">Attended trainings</span><div id="attendedTrainings"></div></div><div class="learning-column"><span class="learning-column-title">Upcoming trainings</span><div id="upcomingTrainings"></div></div><div class="learning-column"><span class="learning-column-title">Courses taken</span><div id="coursesTaken"></div></div></div></section>
+      <div class="tracker-table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Training</th><th>Assigned</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="trainingRows"></tbody></table></div>
+    </section>
+  </main>
+
+  <div class="modal" id="resourceModal" aria-hidden="true"><form class="form-card" id="resourceForm"><button class="modal-close" type="button" data-close="resourceModal">×</button><span class="eyebrow">Resource library</span><h2>Add resource</h2><label>Title<input id="resourceTitle" required placeholder="e.g. Customer service standards" /></label><div class="form-grid"><label>Department<select id="resourceDepartment" required><option value="">Select department</option><option>HR</option><option>Operations</option><option>Procurement</option><option>Engineering</option><option>IT</option><option>Customer Service</option><option>Company-wide</option></select></label><label>Type<select id="resourceCategory" required><option>Job descriptions</option><option>Processes</option><option>Policies</option><option>Courses</option></select></label></div><label>File<input id="resourceFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" required /></label><p class="form-note">Supported: PDF, Word and PowerPoint files.</p><div class="form-actions"><button class="secondary-button" type="button" data-close="resourceModal">Cancel</button><button class="primary-button" type="submit">Save resource</button></div></form></div>
+
+  <div class="modal" id="assignmentModal" aria-hidden="true"><form class="form-card" id="assignmentForm"><button class="modal-close" type="button" data-close="assignmentModal">×</button><span class="eyebrow">Employee learning</span><h2>Assign training</h2><label>Employee(s)<select id="assignmentEmployee" multiple size="6" required></select></label><label>Course or resource<select id="assignmentResource" required></select></label><div class="form-grid"><label>Due date<input id="assignmentDue" type="date" required /></label><label>Status<select id="assignmentStatus"><option>Assigned</option><option>In progress</option><option>Completed</option></select></label></div><div class="form-actions"><button class="secondary-button" type="button" data-close="assignmentModal">Cancel</button><button class="primary-button" type="submit">Save assignment</button></div></form></div>
+  <div class="toast" id="devToast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
