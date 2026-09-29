@@ -70,13 +70,35 @@
     <iframe class="development-frame" src="development-centre/index.html" title="Development Centre module"></iframe>
   </div>
 
+  <div class="app-shell module-hidden" id="employeesShell" aria-hidden="true">
+    <aside class="sidebar">
+      <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
+      <button class="module-switch-button" type="button" data-module="home">&#8592; All modules</button>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a class="nav-item active" href="#employees">Employees</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
+      </div>
+    </aside>
+    <main class="main-content" id="employeesOverview">
+      <header class="topbar">
+        <div><p class="eyebrow" id="employeesTodayDate"></p></div>
+        <div class="top-actions"><button class="primary-button" id="employeesAddButton" type="button">Add employee</button></div>
+      </header>
+      <section class="workspace-section" id="employees">
+        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
+      </section>
+    </main>
+  </div>
+
   <div class="app-shell" id="evaluationsShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
       <button class="module-switch-button" type="button" data-module="home">&#8592; All modules</button>
       <nav class="primary-nav" aria-label="Primary navigation">
         <a class="nav-item active" href="#dashboard" data-tab="dashboard">Dashboard</a>
-        <a class="nav-item" href="#employees" data-tab="employees">Employees</a>
         <a class="nav-item" href="#evaluations" data-tab="evaluations">Evaluations &amp; scoring</a>
       </nav>
       <div class="sidebar-bottom">
@@ -119,13 +141,6 @@
         <div class="department-movement"><div class="movement-heading"><div><span class="section-kicker">Department view</span><h3>Performance movement by department</h3></div><div class="movement-legend"><span><i class="movement-swatch previous"></i><span id="previousMovementLabel">Previous quarter</span></span><span><i class="movement-swatch current"></i><span id="currentMovementLabel">Current quarter</span></span></div></div><div class="movement-chart" id="departmentMovementChart"></div></div>
         <div class="quarter-employee-heading"><span class="section-kicker">Employee detail</span><h3>Performance by employee</h3></div>
         <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th id="currentQuarterHeading">Current</th><th id="previousQuarterHeading">Previous</th><th>Change</th><th>Progress</th></tr></thead><tbody id="quarterProgressRows"></tbody></table></div>
-      </section>
-      </div>
-
-      <div class="tab-panel" id="employeesTab" data-tab-panel="employees">
-      <section class="workspace-section" id="employees">
-        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
       </section>
       </div>
 

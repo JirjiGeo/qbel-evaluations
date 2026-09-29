@@ -268,6 +268,7 @@ const previousQuarterControlLabel = document.querySelector('#previousQuarterCont
 const currentQuarterControlLabel = document.querySelector('#currentQuarterControlLabel');
 const moduleHome = document.querySelector('#moduleHome');
 const evaluationsShell = document.querySelector('#evaluationsShell');
+const employeesShell = document.querySelector('#employeesShell');
 const developmentShell = document.querySelector('#developmentShell');
 
 function showModule(moduleName) {
@@ -275,15 +276,15 @@ function showModule(moduleName) {
   const isEvaluations = moduleName === 'evaluations';
   const isEmployees = moduleName === 'employees';
   const isDevelopment = moduleName === 'development';
-  const isEvaluationShell = isEvaluations || isEmployees;
   moduleHome?.classList.toggle('active', isHome);
-  evaluationsShell?.classList.toggle('module-hidden', !isEvaluationShell);
+  evaluationsShell?.classList.toggle('module-hidden', !isEvaluations);
+  employeesShell?.classList.toggle('module-hidden', !isEmployees);
   developmentShell?.classList.toggle('active', isDevelopment);
   moduleHome?.setAttribute('aria-hidden', String(!isHome));
-  evaluationsShell?.setAttribute('aria-hidden', String(!isEvaluationShell));
+  evaluationsShell?.setAttribute('aria-hidden', String(!isEvaluations));
+  employeesShell?.setAttribute('aria-hidden', String(!isEmployees));
   developmentShell?.setAttribute('aria-hidden', String(!isDevelopment));
   if (isEvaluations) switchTab('dashboard');
-  if (isEmployees) switchTab('employees');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
