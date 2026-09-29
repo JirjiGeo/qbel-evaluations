@@ -24,7 +24,8 @@ target_assignments as (
     on resource.id = assignment.resource_id
   left join latest_assessments as latest
     on latest.assignment_id = assignment.id
-  where assignment.status in ('Assigned', 'In progress')
+  where (assignment.status in ('Assigned', 'In progress')
+      or assignment.result_status = 'Pending')
     and resource.category in ('Courses', 'Trainings')
 )
 update public.training_assignments as assignment
