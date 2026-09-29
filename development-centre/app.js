@@ -14,7 +14,7 @@ function quarterOptions() { const year = new Date().getFullYear(); return [year 
 function assignmentQuarter(assignment) { return assignment.quarter || currentQuarterKey(new Date(`${assignment.assignedDate}T00:00:00`)); }
 
 function employees() {
-  try { return JSON.parse(localStorage.getItem('northstar-employees') || '[]').filter((employee) => !employee.deleted); } catch (error) { return []; }
+  try { return JSON.parse(localStorage.getItem('northstar-employees') || '[]').filter((employee) => !employee.deleted).sort((first, second) => String(first.name || first.full_name || '').localeCompare(String(second.name || second.full_name || ''), undefined, { sensitivity: 'base', numeric: true })); } catch (error) { return []; }
 }
 function save() { localStorage.setItem(libraryKey, JSON.stringify(resources)); localStorage.setItem(trainingKey, JSON.stringify(assignments)); }
 async function loadCloudDevelopmentData() {

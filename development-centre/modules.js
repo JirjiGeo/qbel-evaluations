@@ -25,7 +25,7 @@ function moduleNotify(message) {
 }
 
 function moduleEmployees() {
-  try { return JSON.parse(localStorage.getItem('northstar-employees') || '[]').filter((employee) => !employee.deleted); } catch (error) { return []; }
+  try { return JSON.parse(localStorage.getItem('northstar-employees') || '[]').filter((employee) => !employee.deleted).sort((first, second) => String(first.name || first.full_name || '').localeCompare(String(second.name || second.full_name || ''), undefined, { sensitivity: 'base', numeric: true })); } catch (error) { return []; }
 }
 
 function moduleEmployeeName(id) {
