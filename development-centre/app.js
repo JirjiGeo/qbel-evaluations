@@ -33,7 +33,7 @@ async function loadCloudDevelopmentData() {
     assignments = assignments.map((assignment) => ({ ...assignment, resourceId: resourceIds.get(assignment.resourceId) || assignment.resourceId }));
   }
   if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date }));
-  save(); renderResources(); renderAssignmentOptions(); renderDashboard();
+  save(); renderResources(); renderAssignmentOptions(); renderDashboard(); renderEmployeeLearning();
   if ($('#trackerView').classList.contains('active')) renderTracker();
 }
 async function insertCloudResource(resource) { const client = cloudClient(); if (!client) return resource; const { data, error } = await client.from('development_resources').insert({ title: resource.title, department: resource.department, category: resource.category, recommended: resource.recommended, file_name: resource.fileName, file_type: resource.fileType, file_data: resource.dataUrl }).select('id, title, department, category, recommended, file_name, file_type, created_at').single(); if (error) throw error; return { ...resource, id: data.id, createdAt: data.created_at }; }
@@ -48,6 +48,38 @@ async function loadResourceFile(resource) {
   return resource;
 }
 function notify(message) { const toast = $('#devToast'); toast.textContent = message; toast.classList.add('show'); window.setTimeout(() => toast.classList.remove('show'), 2400); }
+function renderEmployeeLearning() {
+  const activeEmployees = employees();
+  const employeeSelect = $('#learningEmployeeSelect');
+  if (!activeEmployees.length) {
+    $('#learningWelcome').textContent = 'Welcome to your learning page';
+    $('#learningRole').textContent = 'Add employees to begin tracking development.';
+    return;
+  }
+  const currentId = employeeSelect.value || activeEmployees[0].id;
+  employeeSelect.innerHTML = activeEmployees.map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)}</option>`).join('');
+  employeeSelect.value = activeEmployees.some((employee) => employee.id === currentId) ? currentId : activeEmployees[0].id;
+  const employee = activeEmployees.find((item) => item.id === employeeSelect.value) || activeEmployees[0];
+  const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
+  const employeeAssignments = assignments.filter((assignment) => assignment.employeeId === employee.id);
+  const completed = employeeAssignments.filter((assignment) => assignment.status === 'Completed').length;
+  const progress = employeeAssignments.length ? Math.round((completed / employeeAssignments.length) * 100) : 0;
+  const tests = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category === 'Tests');
+  const completedCourses = employeeAssignments.filter((assignment) => assignment.status === 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length;
+  $('#learningWelcome').textContent = `Welcome, ${employee.name}`;
+  $('#learningRole').textContent = employee.role || employee.designation || employee.department || 'Employee';
+  $('#learningProgress').textContent = `${progress}%`;
+  $('#learningProgressBar').style.width = `${progress}%`;
+  $('#learningKpis').innerHTML = [['Active courses', employeeAssignments.filter((assignment) => assignment.status !== 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length], ['Pending exams', tests.filter((assignment) => assignment.status !== 'Completed').length], ['Passed exams', tests.filter((assignment) => assignment.status === 'Completed').length], ['Courses completed', completedCourses]].map(([label, value]) => `<article class="learning-kpi"><span>${label}</span><strong>${value}</strong></article>`).join('');
+  const roadmapItems = [...employeeAssignments].sort((first, second) => (first.assignedDate || '').localeCompare(second.assignedDate || '')).slice(0, 6);
+  $('#learningRoadmap').innerHTML = roadmapItems.length ? roadmapItems.map((assignment, index) => { const resource = resourceMap.get(assignment.resourceId); const state = assignment.status === 'Completed' ? 'complete' : index === 0 ? 'current' : 'next'; return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : index + 1}</span><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Learning activity')} · ${escapeHtml(assignment.status)}</small></div></div>`; }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
+  $('#assignedLearning').innerHTML = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests').length ? employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests').slice(0, 5).map((assignment) => { const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Course')} · ${escapeHtml(assignment.status)}</small></div><time>${escapeHtml(assignment.dueDate || 'No due date')}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No assigned courses.</strong><span>Recommended courses will appear after assignment.</span></div>';
+  $('#employeeAssessments').innerHTML = tests.length ? tests.map((assignment) => { const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted test')}</strong><small>${assignment.status === 'Completed' ? 'Passed' : 'Scheduled'}</small></div><time>${escapeHtml(assignment.dueDate || 'No deadline')}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No pending exams.</strong><span>Assigned tests will appear here.</span></div>';
+  $('#learningSkills').innerHTML = '<div class="skill-gap"><div><strong>Competency data not configured</strong><span>Connect assessments to show current, target, and gap scores.</span></div><b>Set up</b></div>';
+  $('#learningPlan').innerHTML = '<div class="dashboard-empty"><strong>No individual development plan yet.</strong><span>Add career goals and objectives to track promotion readiness.</span></div>';
+  const recommendations = resources.filter((resource) => resource.recommended && ['Courses', 'Trainings', 'Tests'].includes(resource.category)).slice(0, 5);
+  $('#employeeRecommendations').innerHTML = recommendations.length ? recommendations.map((resource) => `<div class="recommendation-item"><div><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.category)} · ${escapeHtml(resource.department)}</small></div><button type="button" data-recommended-resource="${escapeHtml(resource.id)}">Assign</button></div>`).join('') : '<div class="dashboard-empty"><strong>No recommendations yet.</strong><span>Recommended courses and tests will be suggested from competency gaps.</span></div>';
+}
 function renderDashboard() {
   const activeEmployees = employees();
   const employeeMap = new Map(activeEmployees.map((employee) => [employee.id, employee]));
@@ -209,14 +241,17 @@ function renderLearningProfile() {
   $('#upcomingTrainings').innerHTML = renderList(upcoming);
   $('#coursesTaken').innerHTML = renderList(courses);
 }
-function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); if (view === 'dashboard') renderDashboard(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } }
+function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } }
 
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
+document.querySelectorAll('[data-learning-action]').forEach((button) => button.addEventListener('click', () => { const action = button.dataset.learningAction; if (['library', 'tracker'].includes(action)) switchView(action); else notify(`${button.textContent.trim()} will be available when this data is configured.`); }));
 document.querySelectorAll('.resource-tab').forEach((tab) => tab.addEventListener('click', () => { activeResourceCategory = tab.dataset.resourceCategory; document.querySelectorAll('.resource-tab').forEach((item) => item.classList.toggle('active', item === tab)); closeResourcePreview(); renderResources(); }));
 $('#openResourceForm').addEventListener('click', () => openModal('resourceModal'));
 $('#openAssignmentForm').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#dashboardAssignButton').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#recommendedList').addEventListener('click', (event) => { const button = event.target.closest('[data-recommended-resource]'); if (!button) return; renderAssignmentOptions(); $('#assignmentResource').value = button.dataset.recommendedResource; openModal('assignmentModal'); });
+$('#employeeRecommendations').addEventListener('click', (event) => { const button = event.target.closest('[data-recommended-resource]'); if (!button) return; renderAssignmentOptions(); $('#assignmentResource').value = button.dataset.recommendedResource; openModal('assignmentModal'); });
+$('#learningEmployeeSelect').addEventListener('change', renderEmployeeLearning);
 $('#profileEmployeeSelect').addEventListener('change', renderLearningProfile);
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 $('#libraryDepartment').addEventListener('change', renderResources);
@@ -230,4 +265,5 @@ document.addEventListener('click', async (event) => { const previewButton = even
 document.addEventListener('change', async (event) => { const status = event.target.closest('[data-status-assignment]'); if (!status) return; const assignment = assignments.find((item) => item.id === status.dataset.statusAssignment); if (assignment) { assignment.status = status.value; const client = cloudClient(); if (client && !assignment.id.startsWith('training-')) await client.from('training_assignments').update({ status: assignment.status, completed_date: assignment.status === 'Completed' ? new Date().toISOString().slice(0, 10) : null }).eq('id', assignment.id); save(); renderTracker(); notify('Training status updated.'); } });
 renderResources();
 renderDashboard();
+renderEmployeeLearning();
 void loadCloudDevelopmentData();
