@@ -60,6 +60,7 @@ create table if not exists public.development_resources (
   title text not null,
   department text not null,
   category text not null,
+  recommended boolean not null default false,
   file_name text not null,
   file_type text not null,
   file_data text not null,
@@ -70,12 +71,16 @@ create table if not exists public.training_assignments (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references public.employees(id) on delete cascade,
   resource_id uuid not null references public.development_resources(id) on delete cascade,
+  quarter text not null default '',
   assigned_date date not null default current_date,
   due_date date,
   status text not null default 'Assigned' check (status in ('Assigned','In progress','Completed')),
   completed_date date,
   created_at timestamptz not null default now()
 );
+
+alter table public.development_resources add column if not exists recommended boolean not null default false;
+alter table public.training_assignments add column if not exists quarter text not null default '';
 
 create index if not exists development_resources_created_at_idx on public.development_resources(created_at desc);
 create index if not exists training_assignments_employee_id_idx on public.training_assignments(employee_id);
