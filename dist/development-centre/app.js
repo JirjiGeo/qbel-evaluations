@@ -33,7 +33,7 @@ async function loadCloudDevelopmentData() {
     assignments = assignments.map((assignment) => ({ ...assignment, resourceId: resourceIds.get(assignment.resourceId) || assignment.resourceId }));
   }
   if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date }));
-  save(); renderResources(); renderAssignmentOptions();
+  save(); renderResources(); renderAssignmentOptions(); renderDashboard();
   if ($('#trackerView').classList.contains('active')) renderTracker();
 }
 async function insertCloudResource(resource) { const client = cloudClient(); if (!client) return resource; const { data, error } = await client.from('development_resources').insert({ title: resource.title, department: resource.department, category: resource.category, recommended: resource.recommended, file_name: resource.fileName, file_type: resource.fileType, file_data: resource.dataUrl }).select('id, title, department, category, recommended, file_name, file_type, created_at').single(); if (error) throw error; return { ...resource, id: data.id, createdAt: data.created_at }; }
@@ -48,6 +48,31 @@ async function loadResourceFile(resource) {
   return resource;
 }
 function notify(message) { const toast = $('#devToast'); toast.textContent = message; toast.classList.add('show'); window.setTimeout(() => toast.classList.remove('show'), 2400); }
+function renderDashboard() {
+  const activeEmployees = employees();
+  const employeeMap = new Map(activeEmployees.map((employee) => [employee.id, employee]));
+  const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
+  const activeLearners = new Set(assignments.filter((assignment) => assignment.status !== 'Completed').map((assignment) => assignment.employeeId));
+  const completedCourses = assignments.filter((assignment) => assignment.status === 'Completed' && resourceMap.get(assignment.resourceId)?.category === 'Courses').length;
+  const completionRate = assignments.length ? Math.round((assignments.filter((assignment) => assignment.status === 'Completed').length / assignments.length) * 100) : 0;
+  $('#dashboardKpis').innerHTML = [
+    ['Total employees', activeEmployees.length, 'Current directory'],
+    ['Active learners', activeLearners.size, 'With open development activity'],
+    ['Courses completed', completedCourses, 'Completed course assignments'],
+    ['Training completion', `${completionRate}%`, 'Across tracked assignments'],
+    ['Exam pass rate', 'Set up', 'Assessment results required'],
+    ['Active IDPs', 'Set up', 'Development plans required']
+  ].map(([label, value, note]) => `<article class="dashboard-kpi"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join('');
+  const departmentCounts = [...new Set(activeEmployees.map((employee) => employee.department))].sort().map((department) => {
+    const departmentIds = new Set(activeEmployees.filter((employee) => employee.department === department).map((employee) => employee.id));
+    const departmentAssignments = assignments.filter((assignment) => departmentIds.has(assignment.employeeId));
+    const completed = departmentAssignments.filter((assignment) => assignment.status === 'Completed').length;
+    return { department, percentage: departmentAssignments.length ? Math.round((completed / departmentAssignments.length) * 100) : 0, completed, total: departmentAssignments.length };
+  });
+  $('#departmentCompletion').innerHTML = departmentCounts.length ? departmentCounts.map((item) => `<div class="progress-row"><div><strong>${escapeHtml(item.department)}</strong><small>${item.completed}/${item.total} completed</small></div><div class="dashboard-progress"><span style="width:${item.percentage}%"></span></div><b>${item.percentage}%</b></div>`).join('') : '<div class="dashboard-empty"><strong>No department activity yet.</strong><span>Assign a course or training to start measuring completion.</span></div>';
+  const upcoming = assignments.filter((assignment) => assignment.status !== 'Completed' && assignment.dueDate).sort((first, second) => first.dueDate.localeCompare(second.dueDate)).slice(0, 5);
+  $('#upcomingCourses').innerHTML = upcoming.length ? upcoming.map((assignment) => { const employee = employeeMap.get(assignment.employeeId); const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(employee?.name || 'Unknown employee')}</small></div><time>${escapeHtml(assignment.dueDate)}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No upcoming activity.</strong><span>Assignments with due dates will appear here.</span></div>';
+}
 function openModal(id) { const modal = $(`#${id}`); modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); }
 function closeModal(id) { const modal = $(`#${id}`); modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); }
 function fileType(name) { const extension = name.split('.').pop().toUpperCase(); return extension === 'PPTX' ? 'PPT' : extension; }
@@ -184,12 +209,13 @@ function renderLearningProfile() {
   $('#upcomingTrainings').innerHTML = renderList(upcoming);
   $('#coursesTaken').innerHTML = renderList(courses);
 }
-function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } }
+function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); if (view === 'dashboard') renderDashboard(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } }
 
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
 document.querySelectorAll('.resource-tab').forEach((tab) => tab.addEventListener('click', () => { activeResourceCategory = tab.dataset.resourceCategory; document.querySelectorAll('.resource-tab').forEach((item) => item.classList.toggle('active', item === tab)); closeResourcePreview(); renderResources(); }));
 $('#openResourceForm').addEventListener('click', () => openModal('resourceModal'));
 $('#openAssignmentForm').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
+$('#dashboardAssignButton').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#recommendedList').addEventListener('click', (event) => { const button = event.target.closest('[data-recommended-resource]'); if (!button) return; renderAssignmentOptions(); $('#assignmentResource').value = button.dataset.recommendedResource; openModal('assignmentModal'); });
 $('#profileEmployeeSelect').addEventListener('change', renderLearningProfile);
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
@@ -203,4 +229,5 @@ $('#assignmentForm').addEventListener('submit', async (event) => { event.prevent
 document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); if (client && !resourceButton.dataset.deleteResource.startsWith('resource-')) await client.from('development_resources').delete().eq('id', resourceButton.dataset.deleteResource); resources = resources.filter((resource) => resource.id !== resourceButton.dataset.deleteResource); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
 document.addEventListener('change', async (event) => { const status = event.target.closest('[data-status-assignment]'); if (!status) return; const assignment = assignments.find((item) => item.id === status.dataset.statusAssignment); if (assignment) { assignment.status = status.value; const client = cloudClient(); if (client && !assignment.id.startsWith('training-')) await client.from('training_assignments').update({ status: assignment.status, completed_date: assignment.status === 'Completed' ? new Date().toISOString().slice(0, 10) : null }).eq('id', assignment.id); save(); renderTracker(); notify('Training status updated.'); } });
 renderResources();
+renderDashboard();
 void loadCloudDevelopmentData();

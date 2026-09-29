@@ -9,12 +9,14 @@
     .tracker-controls{display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(2,minmax(150px,1fr));gap:12px;margin:0 0 16px}
     .tracker-controls label{display:grid;gap:6px;color:var(--dc-muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
     .tracker-controls input,.tracker-controls select{min-height:36px;padding:0 10px;border:1px solid var(--dc-line);border-radius:6px;background:#fff;color:var(--dc-ink);font-size:12px;text-transform:none;letter-spacing:0}
+    .dashboard-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}.dashboard-kpi{display:grid;gap:8px;padding:16px;background:#fff;border:1px solid var(--dc-line);border-radius:9px}.dashboard-kpi span,.dashboard-kpi small{color:var(--dc-muted);font-size:10px}.dashboard-kpi strong{color:var(--dc-green);font:600 25px Georgia,serif}.dashboard-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.dashboard-panel{min-width:0;padding:18px;background:#fff;border:1px solid var(--dc-line);border-radius:10px}.dashboard-wide{grid-column:1/-1}.panel-heading{display:flex;justify-content:space-between;align-items:start;margin-bottom:16px}.panel-heading h3{margin:6px 0 0;font:600 19px Georgia,serif}.progress-row{display:grid;grid-template-columns:150px minmax(0,1fr) 42px;gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid #edf2ed}.progress-row:last-child{border-bottom:0}.progress-row div:first-child{display:grid;gap:4px}.progress-row small{color:var(--dc-muted);font-size:10px}.progress-row>b{text-align:right;color:var(--dc-green);font-size:11px}.dashboard-progress{height:8px;background:#edf2ed;border-radius:6px;overflow:hidden}.dashboard-progress span{display:block;height:100%;background:var(--dc-green);border-radius:6px}.upcoming-item{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #edf2ed}.upcoming-item:last-child{border-bottom:0}.upcoming-item div{display:grid;gap:4px;min-width:0}.upcoming-item strong{font-size:12px}.upcoming-item small,.upcoming-item time{color:var(--dc-muted);font-size:10px}.dashboard-empty{display:grid;gap:7px;padding:18px;background:#f7faf7;border:1px dashed #c9dfce;border-radius:7px;color:var(--dc-muted);font-size:11px}.dashboard-empty strong{color:var(--dc-ink);font-size:12px}.dashboard-split{display:grid;grid-template-columns:1fr 1fr;gap:12px}.impact-levels{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.impact-levels div{display:grid;gap:7px;padding:13px;background:#edf6ef;border-radius:7px}.impact-levels strong{color:var(--dc-green);font-size:11px}.impact-levels span{color:var(--dc-muted);font-size:10px}
     .quarter-toolbar{display:flex;align-items:end;gap:14px;margin:-8px 0 18px;padding:12px 14px;background:#edf6ef;border:1px solid var(--dc-line);border-radius:8px}.quarter-toolbar label{display:grid;gap:6px;color:var(--dc-muted);font-size:10px;font-weight:700;text-transform:uppercase}.quarter-toolbar select{min-height:34px;padding:0 10px;border:1px solid #9fc2af;border-radius:6px;background:#fff;color:var(--dc-ink);font-size:12px}.quarter-toolbar span{padding-bottom:9px;color:var(--dc-muted);font-size:11px}.recommended-panel{display:grid;gap:14px;margin:0 0 22px;padding:16px;background:#fff;border:1px solid var(--dc-line);border-radius:9px}.recommended-panel h3{margin:6px 0 0;font:600 18px Georgia,serif}.recommended-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.recommended-card{display:grid;gap:5px;padding:12px;border:1px solid #c9dfce;border-radius:7px;background:#f7fbf7;color:var(--dc-ink);text-align:left}.recommended-card:hover{border-color:#7eae8d;background:#edf6ef}.recommended-card small,.resource-type{display:block;margin-top:4px;color:var(--dc-muted);font-size:10px}.checkbox-label{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px!important}.checkbox-label input{width:auto!important}
     .tracker-summary{grid-template-columns:repeat(4,1fr)}
     .summary-card small{display:block;margin-top:3px;color:var(--dc-muted);font:500 10px 'Segoe UI',Arial,sans-serif}
     .summary-alert{border-color:#efd3ce}.summary-alert strong,.overdue-label{color:#b85c52}
     .overdue-row td{background:#fffaf8}.overdue-label{display:block;margin-top:4px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-    @media(max-width:760px){.tracker-summary{grid-template-columns:repeat(2,1fr)}.tracker-controls{grid-template-columns:1fr}.recommended-list{grid-template-columns:1fr}.quarter-toolbar{align-items:stretch;flex-direction:column}.quarter-toolbar span{padding:0}}
+    @media(max-width:980px){.dashboard-kpis{grid-template-columns:repeat(3,1fr)}.impact-levels{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:760px){.tracker-summary{grid-template-columns:repeat(2,1fr)}.tracker-controls{grid-template-columns:1fr}.recommended-list,.dashboard-split{grid-template-columns:1fr}.dashboard-kpis,.dashboard-grid{grid-template-columns:1fr}.dashboard-wide{grid-column:auto}.impact-levels{grid-template-columns:repeat(2,1fr)}.quarter-toolbar{align-items:stretch;flex-direction:column}.quarter-toolbar span{padding:0}}
   </style>
 </head>
 <body>
@@ -24,11 +26,24 @@
       <div class="hero-mark">DC</div>
     </header>
     <nav class="section-tabs" aria-label="Development Centre sections">
-      <button class="section-tab active" data-view="library">Resource library</button>
+      <button class="section-tab active" data-view="dashboard">Dashboard</button>
+      <button class="section-tab" data-view="library">Resource library</button>
       <button class="section-tab" data-view="tracker">Training tracker</button>
     </nav>
 
-    <section class="view active" id="libraryView">
+    <section class="view active" id="dashboardView">
+      <div class="view-heading"><div><span class="eyebrow">Executive summary</span><h2>Development Centre dashboard</h2></div><button class="primary-button" id="dashboardAssignButton">+ Assign activity</button></div>
+      <div class="dashboard-kpis" id="dashboardKpis"></div>
+      <div class="dashboard-grid">
+        <section class="dashboard-panel dashboard-wide"><div class="panel-heading"><div><span class="eyebrow">Completion by department</span><h3>Mandatory training progress</h3></div></div><div id="departmentCompletion"></div></section>
+        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Learning calendar</span><h3>Upcoming courses</h3></div></div><div id="upcomingCourses"></div></section>
+        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Risk signals</span><h3>Certification alerts</h3></div></div><div class="dashboard-empty"><strong>Certification tracking is ready to configure.</strong><span>Add certification records to activate expiry alerts.</span></div></section>
+        <section class="dashboard-panel dashboard-wide"><div class="panel-heading"><div><span class="eyebrow">Capability planning</span><h3>Skills gap and promotion readiness</h3></div></div><div class="dashboard-split"><div class="dashboard-empty"><strong>Competency matrix</strong><span>Connect required and current skills to surface development gaps.</span></div><div class="dashboard-empty"><strong>Talent pool</strong><span>Add readiness levels for future managers and critical successors.</span></div></div></section>
+        <section class="dashboard-panel dashboard-wide"><div class="panel-heading"><div><span class="eyebrow">Productivity impact</span><h3>Training effectiveness</h3></div></div><div class="impact-levels"><div><strong>Level 1</strong><span>Satisfaction</span></div><div><strong>Level 2</strong><span>Knowledge retention</span></div><div><strong>Level 3</strong><span>Behaviour change</span></div><div><strong>Level 4</strong><span>Performance improvement</span></div><div><strong>Level 5</strong><span>Business impact</span></div></div></section>
+      </div>
+    </section>
+
+    <section class="view" id="libraryView">
       <div class="view-heading"><div><span class="eyebrow">Knowledge library</span><h2>Department resources</h2></div><button class="primary-button" id="openResourceForm">+ Add resource</button></div>
       <nav class="resource-tabs" aria-label="Resource categories">
         <button class="resource-tab active" type="button" data-resource-category="Job descriptions">Job descriptions</button>
