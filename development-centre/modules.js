@@ -167,8 +167,12 @@ function moduleRecordMarkup(kind, record) {
     details = `${moduleEscape(record.measure)} · ${record.before_value} → ${record.after_value} (${sign}${difference}) · Measured ${moduleDate(record.measured_on)}`;
     if (record.notes) details += ` · ${moduleEscape(record.notes)}`;
   }
-  const fileLink = kind === 'certificates' && record.file_path ? `<button class="row-action" type="button" data-download-certificate="${moduleEscape(record.id)}">Download</button>` : '';
-  return `<article class="module-record"><div class="module-record-content"><strong>${moduleEscape(title)}</strong><small>${moduleEscape(employee)}</small><div class="module-record-meta">${details}</div></div><div class="module-record-actions">${fileLink}<button class="row-action" type="button" data-delete-module="${kind}" data-record-id="${moduleEscape(record.id)}" aria-label="Delete ${moduleEscape(title)}">Delete</button></div></article>`;
+  const certificateAction = kind === 'certificates' && record.training_assignment_id
+    ? `<button class="row-action" type="button" data-print-certificate="${moduleEscape(record.id)}">Print / Save PDF</button>`
+    : kind === 'certificates' && record.file_path
+      ? `<button class="row-action" type="button" data-download-certificate="${moduleEscape(record.id)}">Download</button>`
+      : '';
+  return `<article class="module-record"><div class="module-record-content"><strong>${moduleEscape(title)}</strong><small>${moduleEscape(employee)}</small><div class="module-record-meta">${details}</div></div><div class="module-record-actions">${certificateAction}<button class="row-action" type="button" data-delete-module="${kind}" data-record-id="${moduleEscape(record.id)}" aria-label="Delete ${moduleEscape(title)}">Delete</button></div></article>`;
 }
 
 function moduleRenderList(kind) {
@@ -184,7 +188,7 @@ function renderEmployeeModuleWidgets() {
   const plans = moduleRows.plans.filter((row) => row.employee_id === employeeId);
   module$('#learningPlan').innerHTML = plans.length ? plans.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.goal)}</strong><small>${moduleEscape(row.status)} · Due ${moduleDate(row.due_date)}</small></article>`).join('') : '<p class="learning-empty">No development goals recorded.</p>';
   const certificates = moduleRows.certificates.filter((row) => row.employee_id === employeeId);
-  module$('#learningCertificates').innerHTML = certificates.length ? certificates.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.certificate_name)}</strong><small>${moduleEscape(row.issuer || 'Issuer not recorded')} · Expires ${moduleDate(row.expires_on)}</small></article>`).join('') : '<p class="learning-empty">No certificates recorded.</p>';
+  module$('#learningCertificates').innerHTML = certificates.length ? certificates.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.certificate_name)}</strong><small>${moduleEscape(row.issuer || 'Issuer not recorded')} · Expires ${moduleDate(row.expires_on)}</small>${row.training_assignment_id ? `<button class="row-action" type="button" data-print-certificate="${moduleEscape(row.id)}">Print / Save PDF</button>` : ''}</article>`).join('') : '<p class="learning-empty">No certificates recorded.</p>';
   const assignmentsById = new Map(moduleAssignments.map((item) => [item.id, item]));
   const tests = moduleAssignments.filter((item) => item.employee_id === employeeId && moduleResources.some((resource) => resource.id === item.resource_id && resource.category === 'Tests'));
   module$('#employeeAssessments').innerHTML = tests.length ? tests.map((assignment) => {
@@ -374,6 +378,19 @@ async function downloadDevelopmentCertificate(id) {
   URL.revokeObjectURL(url);
 }
 
+function printTrainingCertificate(id) {
+  const certificate = moduleRows.certificates.find((item) => item.id === id);
+  if (!certificate?.training_assignment_id) return;
+  const employeeName = moduleEmployeeName(certificate.employee_id);
+  const issueDate = moduleDate(certificate.issued_on);
+  const expiryDate = moduleDate(certificate.expires_on);
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return moduleNotify('Allow pop-ups to open the certificate for printing.');
+  printWindow.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${moduleEscape(certificate.certificate_name)}</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;padding:28px;background:#eef2ed;color:#17372a;font:16px Georgia,serif}.certificate{position:relative;display:grid;align-content:center;justify-items:center;min-height:520px;padding:50px;border:10px double #315a43;background:#fff;text-align:center}.eyebrow{font:700 12px Arial,sans-serif;letter-spacing:3px;text-transform:uppercase;color:#58735f}.title{margin:25px 0 12px;font-size:42px;font-weight:400}.recipient{margin:8px 0 18px;font-size:34px;color:#234d36}.course{font-size:21px}.validity{margin-top:30px;color:#52685a;font:14px Arial,sans-serif}.issuer{margin-top:40px;font:700 14px Arial,sans-serif}.certificate-id{position:absolute;bottom:18px;color:#77847b;font:10px Arial,sans-serif}.print-action{position:fixed;right:20px;top:20px;padding:10px 16px;border:0;border-radius:4px;background:#17372a;color:white;font-weight:700;cursor:pointer}@media print{body{padding:0;background:#fff}.certificate{min-height:180mm}.print-action{display:none}}</style></head><body><main class="certificate"><span class="eyebrow">Certificate of Completion</span><h1 class="title">${moduleEscape(certificate.certificate_name)}</h1><p>This certificate is proudly presented to</p><strong class="recipient">${moduleEscape(employeeName)}</strong><p class="course">for successfully completing the assigned training course.</p><p class="validity">Issued ${moduleEscape(issueDate)} · Valid through ${moduleEscape(expiryDate)}</p><strong class="issuer">${moduleEscape(certificate.issuer || 'QBEL FM & Technical Services')}</strong><small class="certificate-id">Certificate ID ${moduleEscape(certificate.id)}</small></main><button class="print-action" type="button">Print / Save as PDF</button></body></html>`);
+  printWindow.document.close();
+  printWindow.document.querySelector('.print-action').addEventListener('click', () => printWindow.print());
+}
+
 document.querySelectorAll('[data-module-view]').forEach((button) => button.addEventListener('click', () => {
   document.querySelectorAll('[data-module-view]').forEach((tab) => tab.classList.toggle('active', tab === button));
   document.querySelectorAll('.module-panel').forEach((panel) => panel.classList.toggle('active', panel.id === `modulePanel-${button.dataset.moduleView}`));
@@ -386,9 +403,16 @@ document.addEventListener('click', (event) => {
   if (deleteButton) void deleteDevelopmentRecord(deleteButton.dataset.deleteModule, deleteButton.dataset.recordId);
   const downloadButton = event.target.closest('[data-download-certificate]');
   if (downloadButton) void downloadDevelopmentCertificate(downloadButton.dataset.downloadCertificate);
+  const printButton = event.target.closest('[data-print-certificate]');
+  if (printButton) printTrainingCertificate(printButton.dataset.printCertificate);
 });
 module$('#learningEmployeeSelect').addEventListener('change', renderEmployeeModuleWidgets);
 window.renderDevelopmentModules = renderDevelopmentModules;
+window.addEventListener('development-modules-refresh', () => {
+  if (!moduleSessionUserId) return;
+  moduleLoadedUserId = null;
+  void loadDevelopmentModulesForSession({ user: { id: moduleSessionUserId } });
+});
 window.openDevelopmentModule = (action) => {
   const moduleName = ({ development: 'plans', certificates: 'certificates', tests: 'assessments' })[action];
   if (!moduleName) return;

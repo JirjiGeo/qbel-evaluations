@@ -108,10 +108,14 @@ create table if not exists public.employee_certifications (
   issuer text,
   issued_on date,
   expires_on date,
+  training_assignment_id uuid,
   file_name text,
   file_path text,
   created_at timestamptz not null default now()
 );
+
+alter table public.employee_certifications
+  add column if not exists training_assignment_id uuid references public.training_assignments(id) on delete set null;
 
 create table if not exists public.training_assessment_results (
   id uuid primary key default gen_random_uuid(),
@@ -145,6 +149,7 @@ create index if not exists development_plans_employee_id_idx on public.developme
 create index if not exists development_skills_employee_id_idx on public.development_skills(employee_id);
 create index if not exists employee_certifications_employee_id_idx on public.employee_certifications(employee_id);
 create index if not exists employee_certifications_expires_on_idx on public.employee_certifications(expires_on);
+create unique index if not exists employee_certifications_training_assignment_idx on public.employee_certifications(training_assignment_id);
 create index if not exists training_assessment_results_assignment_id_idx on public.training_assessment_results(assignment_id);
 create index if not exists training_impact_records_assignment_id_idx on public.training_impact_records(assignment_id);
 
@@ -290,4 +295,77 @@ create policy "Authenticated users can upload development certificate files"
   on storage.objects for insert to authenticated with check (bucket_id = 'development-certificates');
 create policy "Authenticated users can delete development certificate files"
   on storage.objects for delete to authenticated using (bucket_id = 'development-certificates');
+
+create or replace function public.issue_training_completion_certificate()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  certificate_issue_date date;
+begin
+  if new.status <> 'Completed' then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and old.status = 'Completed' then
+    return new;
+  end if;
+
+  certificate_issue_date := coalesce(new.completed_date, current_date);
+
+  insert into public.employee_certifications (
+    employee_id,
+    training_assignment_id,
+    certificate_name,
+    issuer,
+    issued_on,
+    expires_on
+  )
+  select
+    new.employee_id,
+    new.id,
+    resource.title || ' Completion Certificate',
+    'QBEL FM & Technical Services',
+    certificate_issue_date,
+    (certificate_issue_date + interval '1 year')::date
+  from public.development_resources as resource
+  where resource.id = new.resource_id
+    and resource.category in ('Courses', 'Trainings')
+  on conflict (training_assignment_id) do update set
+    employee_id = excluded.employee_id,
+    certificate_name = excluded.certificate_name,
+    issuer = excluded.issuer,
+    issued_on = excluded.issued_on,
+    expires_on = excluded.expires_on;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists issue_training_completion_certificate on public.training_assignments;
+create trigger issue_training_completion_certificate
+  after insert or update on public.training_assignments
+  for each row execute function public.issue_training_completion_certificate();
+
+insert into public.employee_certifications (
+  employee_id,
+  training_assignment_id,
+  certificate_name,
+  issuer,
+  issued_on,
+  expires_on
+)
+select
+  assignment.employee_id,
+  assignment.id,
+  resource.title || ' Completion Certificate',
+  'QBEL FM & Technical Services',
+  coalesce(assignment.completed_date, current_date),
+  (coalesce(assignment.completed_date, current_date) + interval '1 year')::date
+from public.training_assignments as assignment
+join public.development_resources as resource on resource.id = assignment.resource_id
+where assignment.status = 'Completed'
+  and resource.category in ('Courses', 'Trainings')
+on conflict (training_assignment_id) do nothing;
 

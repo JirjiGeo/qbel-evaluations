@@ -283,7 +283,43 @@ $('#trainingDepartmentFilter').addEventListener('change', renderTracker);
 $('#resourceForm').addEventListener('submit', async (event) => { event.preventDefault(); const file = $('#resourceFile').files[0]; if (!file) return; const allowed = /\.(pdf|doc|docx|ppt|pptx)$/i.test(file.name); if (!allowed) { notify('Please upload a PDF, Word or PowerPoint file.'); return; } const resource = { id: `resource-${Date.now()}`, title: $('#resourceTitle').value.trim(), department: $('#resourceDepartment').value, category: $('#resourceCategory').value, recommended: $('#resourceRecommended').checked, fileName: file.name, fileType: fileType(file.name), file, dataUrl: await readFile(file), createdAt: new Date().toISOString() }; try { resources.unshift(await insertCloudResource(resource)); save(); renderResources(); renderAssignmentOptions(); closeModal('resourceModal'); event.target.reset(); notify('Resource added successfully.'); } catch (error) { console.error('Resource upload failed:', error); notify(`Upload failed: ${error.message || 'Supabase rejected the request.'}`); } });
 $('#assignmentForm').addEventListener('submit', async (event) => { event.preventDefault(); const selectedEmployees = Array.from($('#assignmentEmployee').selectedOptions).map((option) => option.value).filter(Boolean); const resourceId = $('#assignmentResource').value; if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course or test.'); return; } const assignmentsToCreate = selectedEmployees.map((employeeId) => ({ id: `training-${Date.now()}-${employeeId}`, employeeId, resourceId, quarter: $('#assignmentQuarter').value, assignedDate: new Date().toISOString().slice(0, 10), dueDate: $('#assignmentDue').value, status: $('#assignmentStatus').value })); try { const createdAssignments = await Promise.all(assignmentsToCreate.map((assignment) => insertCloudAssignment(assignment))); assignments.unshift(...createdAssignments); save(); renderTracker(); closeModal('assignmentModal'); event.target.reset(); notify(selectedEmployees.length > 1 ? 'Development activity assigned to selected employees.' : 'Development activity assigned successfully.'); } catch (error) { notify('Development activity could not be saved to Supabase.'); } });
 document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); const resourceId = resourceButton.dataset.deleteResource; const resource = resources.find((item) => item.id === resourceId); if (client && !resourceId.startsWith('resource-')) { if (resource?.filePath) { const { error } = await client.storage.from(resourceBucket).remove([resource.filePath]); if (error) { console.error('Resource file deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } const { error } = await client.from('development_resources').delete().eq('id', resourceId); if (error) { console.error('Resource deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } resources = resources.filter((item) => item.id !== resourceId); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
-document.addEventListener('change', async (event) => { const status = event.target.closest('[data-status-assignment]'); if (!status) return; const assignment = assignments.find((item) => item.id === status.dataset.statusAssignment); if (assignment) { assignment.status = status.value; const client = cloudClient(); if (client && !assignment.id.startsWith('training-')) await client.from('training_assignments').update({ status: assignment.status, completed_date: assignment.status === 'Completed' ? new Date().toISOString().slice(0, 10) : null }).eq('id', assignment.id); save(); renderTracker(); notify('Training status updated.'); } });
+document.addEventListener('change', async (event) => {
+  const status = event.target.closest('[data-status-assignment]');
+  if (!status) return;
+  const assignment = assignments.find((item) => item.id === status.dataset.statusAssignment);
+  if (!assignment) return;
+  const previousStatus = assignment.status;
+  const nextStatus = status.value;
+  const resource = resources.find((item) => item.id === assignment.resourceId);
+  const issuesCertificate = nextStatus === 'Completed' && ['Courses', 'Trainings'].includes(resource?.category);
+  const client = cloudClient();
+  if (issuesCertificate && (!client || assignment.id.startsWith('training-'))) {
+    status.value = previousStatus;
+    notify('Sign in to Supabase before completing a course so its certificate can be issued.');
+    return;
+  }
+  try {
+    if (client && !assignment.id.startsWith('training-')) {
+      const completedDate = nextStatus === 'Completed' ? new Date().toISOString().slice(0, 10) : null;
+      const { error } = await client.from('training_assignments').update({ status: nextStatus, completed_date: completedDate }).eq('id', assignment.id);
+      if (error) throw error;
+    }
+    assignment.status = nextStatus;
+    assignment.completedDate = nextStatus === 'Completed' ? new Date().toISOString().slice(0, 10) : null;
+    save();
+    renderTracker();
+    if (issuesCertificate) {
+      window.dispatchEvent(new Event('development-modules-refresh'));
+      notify('Course completed. Its certificate is issued and valid for one year.');
+    } else {
+      notify('Training status updated.');
+    }
+  } catch (error) {
+    status.value = previousStatus;
+    console.error('Training status update failed:', error);
+    notify(`Training status update failed: ${error.message}`);
+  }
+});
 renderResources();
 renderDashboard();
 renderEmployeeLearning();
