@@ -77,8 +77,24 @@ create table if not exists public.training_assignments (
   due_date date,
   status text not null default 'Assigned' check (status in ('Assigned','In progress','Completed')),
   completed_date date,
+  skills_to_develop text[] not null default '{}',
+  result_status text not null default 'Pending',
+  result_source text not null default 'manual',
+  passed_date date,
+  training_valid_until date,
   created_at timestamptz not null default now()
 );
+
+alter table public.training_assignments
+  add column if not exists skills_to_develop text[] not null default '{}';
+alter table public.training_assignments add column if not exists result_status text not null default 'Pending';
+alter table public.training_assignments add column if not exists result_source text not null default 'manual';
+alter table public.training_assignments add column if not exists passed_date date;
+alter table public.training_assignments add column if not exists training_valid_until date;
+alter table public.training_assignments drop constraint if exists training_assignments_result_status_check;
+alter table public.training_assignments add constraint training_assignments_result_status_check check (result_status in ('Pending','Passed','Failed'));
+alter table public.training_assignments drop constraint if exists training_assignments_result_source_check;
+alter table public.training_assignments add constraint training_assignments_result_source_check check (result_source in ('manual','assessment'));
 
 create table if not exists public.development_plans (
   id uuid primary key default gen_random_uuid(),
@@ -296,6 +312,86 @@ create policy "Authenticated users can upload development certificate files"
 create policy "Authenticated users can delete development certificate files"
   on storage.objects for delete to authenticated using (bucket_id = 'development-certificates');
 
+create or replace function public.set_training_assignment_validity()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.result_status = 'Passed' then
+    if tg_op = 'INSERT' then
+      new.passed_date := coalesce(new.passed_date, new.completed_date, current_date);
+    elsif old.status <> 'Completed' or old.result_status <> 'Passed' or new.passed_date is distinct from old.passed_date then
+      new.passed_date := coalesce(new.passed_date, new.completed_date, current_date);
+    else
+      new.passed_date := coalesce(new.passed_date, old.passed_date, new.completed_date, current_date);
+    end if;
+    new.training_valid_until := case when new.status = 'Completed' then (new.passed_date + interval '1 year')::date else null end;
+  else
+    new.passed_date := null;
+    new.training_valid_until := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists set_training_assignment_validity on public.training_assignments;
+create trigger set_training_assignment_validity
+  before insert or update on public.training_assignments
+  for each row execute function public.set_training_assignment_validity();
+
+create or replace function public.sync_training_assignment_result_for(p_assignment_id uuid)
+returns void
+language plpgsql
+set search_path = public
+as $$
+declare
+  latest_result public.training_assessment_results%rowtype;
+begin
+  select * into latest_result
+  from public.training_assessment_results
+  where training_assessment_results.assignment_id = p_assignment_id
+  order by attempted_on desc, created_at desc
+  limit 1;
+
+  if found then
+    update public.training_assignments
+    set result_status = case when latest_result.passed then 'Passed' else 'Failed' end,
+        result_source = 'assessment',
+        passed_date = case when latest_result.passed then latest_result.attempted_on else null end
+    where id = p_assignment_id;
+  else
+    update public.training_assignments
+    set result_status = 'Pending', result_source = 'manual', passed_date = null
+    where id = p_assignment_id and result_source = 'assessment';
+  end if;
+end;
+$$;
+
+create or replace function public.sync_training_assignment_result()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' then
+    perform public.sync_training_assignment_result_for(old.assignment_id);
+    return old;
+  end if;
+
+  if tg_op = 'UPDATE' and old.assignment_id is distinct from new.assignment_id then
+    perform public.sync_training_assignment_result_for(old.assignment_id);
+  end if;
+  perform public.sync_training_assignment_result_for(new.assignment_id);
+  return new;
+end;
+$$;
+
+drop trigger if exists sync_training_assignment_result on public.training_assessment_results;
+create trigger sync_training_assignment_result
+  after insert or update or delete on public.training_assessment_results
+  for each row execute function public.sync_training_assignment_result();
+
 create or replace function public.issue_training_completion_certificate()
 returns trigger
 language plpgsql
@@ -304,15 +400,13 @@ as $$
 declare
   certificate_issue_date date;
 begin
-  if new.status <> 'Completed' then
+  if new.status <> 'Completed' or new.result_status <> 'Passed' then
+    delete from public.employee_certifications
+    where training_assignment_id = new.id;
     return new;
   end if;
 
-  if tg_op = 'UPDATE' and old.status = 'Completed' then
-    return new;
-  end if;
-
-  certificate_issue_date := coalesce(new.completed_date, current_date);
+  certificate_issue_date := coalesce(new.passed_date, new.completed_date, current_date);
 
   insert into public.employee_certifications (
     employee_id,
@@ -328,7 +422,7 @@ begin
     resource.title || ' Completion Certificate',
     'QBEL FM & Technical Services',
     certificate_issue_date,
-    (certificate_issue_date + interval '1 year')::date
+    coalesce(new.training_valid_until, (certificate_issue_date + interval '1 year')::date)
   from public.development_resources as resource
   where resource.id = new.resource_id
     and resource.category in ('Courses', 'Trainings')
@@ -348,6 +442,14 @@ create trigger issue_training_completion_certificate
   after insert or update on public.training_assignments
   for each row execute function public.issue_training_completion_certificate();
 
+delete from public.employee_certifications as certificate
+using public.training_assignments as assignment, public.development_resources as resource
+where certificate.training_assignment_id = assignment.id
+  and resource.id = assignment.resource_id
+  and (assignment.status <> 'Completed'
+    or assignment.result_status <> 'Passed'
+    or resource.category not in ('Courses', 'Trainings'));
+
 insert into public.employee_certifications (
   employee_id,
   training_assignment_id,
@@ -366,6 +468,7 @@ select
 from public.training_assignments as assignment
 join public.development_resources as resource on resource.id = assignment.resource_id
 where assignment.status = 'Completed'
+  and assignment.result_status = 'Passed'
   and resource.category in ('Courses', 'Trainings')
 on conflict (training_assignment_id) do nothing;
 

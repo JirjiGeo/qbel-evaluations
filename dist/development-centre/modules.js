@@ -183,8 +183,23 @@ function moduleRenderList(kind) {
 function renderEmployeeModuleWidgets() {
   const employeeId = module$('#learningEmployeeSelect')?.value;
   if (!employeeId) return;
-  const skills = moduleRows.skills.filter((row) => row.employee_id === employeeId);
-  module$('#learningSkills').innerHTML = skills.length ? skills.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.competency)}</strong><small>Current ${row.current_level}/5 · Target ${row.target_level}/5 · Gap ${Math.max(0, row.target_level - row.current_level)}</small></article>`).join('') : '<p class="learning-empty">No skill ratings recorded.</p>';
+  const skillRows = new Map(moduleRows.skills.filter((row) => row.employee_id === employeeId).map((row) => [row.competency.toLowerCase(), { name: row.competency, rating: row, courses: [] }]));
+  for (const assignment of moduleAssignments.filter((item) => item.employee_id === employeeId)) {
+    const resource = moduleResources.find((item) => item.id === assignment.resource_id);
+    const course = resource?.title || 'Learning activity';
+    for (const skill of assignment.skills_to_develop || assignment.skillsToDevelop || []) {
+      const key = skill.toLowerCase();
+      const entry = skillRows.get(key) || { name: skill, rating: null, courses: [] };
+      entry.courses.push({ title: course, status: assignment.status });
+      skillRows.set(key, entry);
+    }
+  }
+  const skills = [...skillRows.values()];
+  module$('#learningSkills').innerHTML = skills.length ? skills.map((skill) => {
+    const levels = skill.rating ? `Current ${skill.rating.current_level}/5 · Target ${skill.rating.target_level}/5 · Gap ${Math.max(0, skill.rating.target_level - skill.rating.current_level)}` : 'Selected for development';
+    const courses = skill.courses.map((course) => `${course.title} (${course.status})`).join(', ');
+    return `<article class="learning-item"><strong>${moduleEscape(skill.name)}</strong><small>${levels}${courses ? ` · ${moduleEscape(courses)}` : ''}</small></article>`;
+  }).join('') : '<p class="learning-empty">No skills selected yet. Add skills when assigning a training course.</p>';
   const plans = moduleRows.plans.filter((row) => row.employee_id === employeeId);
   module$('#learningPlan').innerHTML = plans.length ? plans.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.goal)}</strong><small>${moduleEscape(row.status)} · Due ${moduleDate(row.due_date)}</small></article>`).join('') : '<p class="learning-empty">No development goals recorded.</p>';
   const certificates = moduleRows.certificates.filter((row) => row.employee_id === employeeId);
@@ -261,7 +276,7 @@ function openDevelopmentRecordForm(kind) {
       moduleField('PDF evidence (optional)', 'certificate_file', '<input name="certificate_file" type="file" accept=".pdf,application/pdf" />', true)
     ],
     assessments: [
-      moduleField('Assigned test', 'assignment_id', assignment('Tests'), true),
+      moduleField('Assigned course or test', 'assignment_id', assignment(null), true),
       moduleField('Attempt date', 'attempted_on', `<input name="attempted_on" type="date" value="${date}" required />`),
       moduleField('Score (%)', 'score', '<input name="score" type="number" min="0" max="100" step="0.01" required />'),
       moduleField('Pass mark (%)', 'pass_mark', '<input name="pass_mark" type="number" min="0" max="100" step="0.01" value="70" required />'),
@@ -279,7 +294,7 @@ function openDevelopmentRecordForm(kind) {
   fields = forms[kind]?.join('') || '';
   if (!fields) return;
   module$('#developmentRecordForm').dataset.module = kind;
-  module$('#moduleFormTitle').textContent = ({ plans: 'Add development goal', skills: 'Assess employee skill', certificates: 'Add certificate', assessments: 'Record exam result', impact: 'Record training impact' })[kind];
+  module$('#moduleFormTitle').textContent = ({ plans: 'Add development goal', skills: 'Assess employee skill', certificates: 'Add certificate', assessments: 'Record training result', impact: 'Record training impact' })[kind];
   module$('#moduleFormFields').innerHTML = `<div class="module-form-grid">${fields}</div>`;
   moduleReturnFocus = document.activeElement;
   module$('#moduleModal').classList.add('open');
@@ -347,6 +362,7 @@ async function saveDevelopmentRecord(event) {
   form.reset();
   closeDevelopmentRecordForm();
   renderDevelopmentModules();
+  if (kind === 'assessments') window.dispatchEvent(new Event('development-modules-refresh'));
   moduleNotify(kind === 'skills' ? 'Skill assessment saved.' : 'Development record saved.');
 }
 

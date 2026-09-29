@@ -33,7 +33,7 @@ async function loadCloudDevelopmentData() {
     resources = migratedResources;
     assignments = assignments.map((assignment) => ({ ...assignment, resourceId: resourceIds.get(assignment.resourceId) || assignment.resourceId }));
   }
-  if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date }));
+  if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
   save(); renderResources(); renderAssignmentOptions(); renderDashboard(); renderEmployeeLearning();
   if ($('#trackerView').classList.contains('active')) renderTracker();
 }
@@ -52,7 +52,7 @@ async function insertCloudResource(resource) {
   }
   return { ...resource, id: data.id, filePath: data.file_path, dataUrl: null, file: undefined, createdAt: data.created_at };
 }
-async function insertCloudAssignment(assignment) { const client = cloudClient(); if (!client) return assignment; const { data, error } = await client.from('training_assignments').insert({ employee_id: assignment.employeeId, resource_id: assignment.resourceId, quarter: assignment.quarter, assigned_date: assignment.assignedDate, due_date: assignment.dueDate || null, status: assignment.status, completed_date: assignment.completedDate || null }).select().single(); if (error) throw error; return { ...assignment, id: data.id }; }
+async function insertCloudAssignment(assignment) { const client = cloudClient(); if (!client) return assignment; const { data, error } = await client.from('training_assignments').insert({ employee_id: assignment.employeeId, resource_id: assignment.resourceId, quarter: assignment.quarter, assigned_date: assignment.assignedDate, due_date: assignment.dueDate || null, status: assignment.status, completed_date: assignment.completedDate || null, skills_to_develop: assignment.skillsToDevelop || [] }).select().single(); if (error) throw error; return { ...assignment, id: data.id, resultStatus: data.result_status || 'Pending', resultSource: data.result_source || 'manual', passedDate: data.passed_date, trainingValidUntil: data.training_valid_until }; }
 async function loadResourceFile(resource) {
   if (resource.dataUrl) return resource;
   const client = cloudClient();
@@ -93,10 +93,15 @@ function renderEmployeeLearning() {
   $('#learningProgressBar').style.width = `${progress}%`;
   $('#learningKpis').innerHTML = [['Active courses', employeeAssignments.filter((assignment) => assignment.status !== 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length], ['Pending exams', tests.filter((assignment) => assignment.status !== 'Completed').length], ['Passed exams', tests.filter((assignment) => assignment.status === 'Completed').length], ['Courses completed', completedCourses]].map(([label, value]) => `<article class="learning-kpi"><span>${label}</span><strong>${value}</strong></article>`).join('');
   const roadmapItems = [...employeeAssignments].sort((first, second) => (first.assignedDate || '').localeCompare(second.assignedDate || '')).slice(0, 6);
-  $('#learningRoadmap').innerHTML = roadmapItems.length ? roadmapItems.map((assignment, index) => { const resource = resourceMap.get(assignment.resourceId); const state = assignment.status === 'Completed' ? 'complete' : index === 0 ? 'current' : 'next'; return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : index + 1}</span><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Learning activity')} · ${escapeHtml(assignment.status)}</small></div></div>`; }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
-  $('#assignedLearning').innerHTML = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests').length ? employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests').slice(0, 5).map((assignment) => { const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Course')} · ${escapeHtml(assignment.status)}</small></div><time>${escapeHtml(assignment.dueDate || 'No due date')}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No assigned courses.</strong><span>Recommended courses will appear after assignment.</span></div>';
+  $('#learningRoadmap').innerHTML = roadmapItems.length ? roadmapItems.map((assignment, index) => {
+    const resource = resourceMap.get(assignment.resourceId);
+    const state = assignment.status === 'Completed' ? 'complete' : index === 0 ? 'current' : 'next';
+    const skills = assignment.skillsToDevelop || assignment.skills_to_develop || [];
+    const skillNote = skills.length ? `<small class="roadmap-skills">Builds: ${skills.map(escapeHtml).join(', ')}</small>` : '';
+    return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : index + 1}</span><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Learning activity')} · ${escapeHtml(assignment.status)}</small>${skillNote}</div></div>`;
+  }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
+  $('#assignedLearning').innerHTML = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests').length ? employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests').slice(0, 5).map((assignment) => { const resource = resourceMap.get(assignment.resourceId); const result = assignment.resultStatus || 'Pending'; const validity = assignment.trainingValidUntil ? ` · Valid through ${escapeHtml(assignment.trainingValidUntil)}` : ''; return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Course')} · ${escapeHtml(assignment.status)} · ${escapeHtml(result)}${validity}</small></div><time>${escapeHtml(assignment.dueDate || 'No due date')}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No assigned courses.</strong><span>Recommended courses will appear after assignment.</span></div>';
   $('#employeeAssessments').innerHTML = tests.length ? tests.map((assignment) => { const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted test')}</strong><small>${assignment.status === 'Completed' ? 'Passed' : 'Scheduled'}</small></div><time>${escapeHtml(assignment.dueDate || 'No deadline')}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No pending exams.</strong><span>Assigned tests will appear here.</span></div>';
-  $('#learningSkills').innerHTML = '<div class="skill-gap"><div><strong>Competency data not configured</strong><span>Connect assessments to show current, target, and gap scores.</span></div><b>Set up</b></div>';
   $('#learningPlan').innerHTML = '<div class="dashboard-empty"><strong>No individual development plan yet.</strong><span>Add career goals and objectives to track promotion readiness.</span></div>';
   const recommendations = resources.filter((resource) => resource.recommended && ['Courses', 'Trainings', 'Tests'].includes(resource.category)).slice(0, 5);
   $('#employeeRecommendations').innerHTML = recommendations.length ? recommendations.map((resource) => `<div class="recommendation-item"><div><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.category)} · ${escapeHtml(resource.department)}</small></div><button type="button" data-recommended-resource="${escapeHtml(resource.id)}">Assign</button></div>`).join('') : '<div class="dashboard-empty"><strong>No recommendations yet.</strong><span>Recommended courses and tests will be suggested from competency gaps.</span></div>';
@@ -246,7 +251,16 @@ function renderTracker() {
     const matchesStatus = statusFilter === 'all' || (statusFilter === 'overdue' ? assignmentIsOverdue(assignment) : assignment.status === statusFilter);
     return matchesQuery && matchesStatus && (departmentFilter === 'all' || employee.department === departmentFilter);
   });
-  $('#trainingRows').innerHTML = filteredAssignments.length ? filteredAssignments.map((assignment) => { const employee = employeeMap.get(assignment.employeeId) || { name: 'Unknown employee', department: '—' }; const resource = resourceMap.get(assignment.resourceId) || { title: 'Deleted resource', category: 'Training' }; const overdueClass = assignmentIsOverdue(assignment) ? ' overdue-row' : ''; const statusClass = assignment.status.toLowerCase().replace(/\s+/g, '-'); return `<tr class="${overdueClass}"><td><strong>${escapeHtml(employee.name)}</strong></td><td>${escapeHtml(employee.department)}</td><td><strong>${escapeHtml(resource.title)}</strong><small class="resource-type">${escapeHtml(resource.category)}</small></td><td>${escapeHtml(assignment.assignedDate)}</td><td>${escapeHtml(assignment.dueDate || 'No due date')}</td><td><select class="status status-${statusClass}" data-status-assignment="${assignment.id}"><option ${assignment.status === 'Assigned' ? 'selected' : ''}>Assigned</option><option ${assignment.status === 'In progress' ? 'selected' : ''}>In progress</option><option ${assignment.status === 'Completed' ? 'selected' : ''}>Completed</option></select>${assignmentIsOverdue(assignment) ? '<small class="overdue-label">Overdue</small>' : ''}</td><td><button class="row-action" data-delete-assignment="${assignment.id}" type="button">Delete</button></td></tr>`; }).join('') : '<tr><td colspan="7" class="empty-state">No matching assignments for this quarter.</td></tr>';
+  $('#trainingRows').innerHTML = filteredAssignments.length ? filteredAssignments.map((assignment) => {
+    const employee = employeeMap.get(assignment.employeeId) || { name: 'Unknown employee', department: '—' };
+    const resource = resourceMap.get(assignment.resourceId) || { title: 'Deleted resource', category: 'Training' };
+    const overdueClass = assignmentIsOverdue(assignment) ? ' overdue-row' : '';
+    const statusClass = assignment.status.toLowerCase().replace(/\s+/g, '-');
+    const resultStatus = assignment.resultStatus || 'Pending';
+    const resultDisabled = assignment.status !== 'Completed' || assignment.resultSource === 'assessment';
+    const resultTitle = assignment.resultSource === 'assessment' ? 'Set by latest assessment score.' : 'Set after training is completed.';
+    return `<tr class="${overdueClass}"><td><strong>${escapeHtml(employee.name)}</strong></td><td>${escapeHtml(employee.department)}</td><td><strong>${escapeHtml(resource.title)}</strong><small class="resource-type">${escapeHtml(resource.category)}</small></td><td>${escapeHtml(assignment.assignedDate)}</td><td>${escapeHtml(assignment.dueDate || 'No due date')}</td><td><select class="status status-${statusClass}" data-status-assignment="${assignment.id}"><option ${assignment.status === 'Assigned' ? 'selected' : ''}>Assigned</option><option ${assignment.status === 'In progress' ? 'selected' : ''}>In progress</option><option ${assignment.status === 'Completed' ? 'selected' : ''}>Completed</option></select>${assignmentIsOverdue(assignment) ? '<small class="overdue-label">Overdue</small>' : ''}</td><td><select class="status result-${resultStatus.toLowerCase()}" data-result-assignment="${assignment.id}" title="${resultTitle}" ${resultDisabled ? 'disabled' : ''}><option value="Pending" ${resultStatus === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${resultStatus === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${resultStatus === 'Failed' ? 'selected' : ''}>Failed</option></select></td><td>${escapeHtml(assignment.trainingValidUntil || 'Not issued')}</td><td><button class="row-action" data-delete-assignment="${assignment.id}" type="button">Delete</button></td></tr>`;
+  }).join('') : '<tr><td colspan="9" class="empty-state">No matching assignments for this quarter.</td></tr>';
   renderLearningProfile();
 }
 function learningItem(assignment, resourceMap) { const resource = resourceMap.get(assignment.resourceId); return `<article class="learning-item"><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(assignment.dueDate || assignment.assignedDate)}${assignment.status === 'Completed' ? ' · Completed' : ''}</small></article>`; }
@@ -281,7 +295,28 @@ $('#trainingSearch').addEventListener('input', renderTracker);
 $('#trainingStatusFilter').addEventListener('change', renderTracker);
 $('#trainingDepartmentFilter').addEventListener('change', renderTracker);
 $('#resourceForm').addEventListener('submit', async (event) => { event.preventDefault(); const file = $('#resourceFile').files[0]; if (!file) return; const allowed = /\.(pdf|doc|docx|ppt|pptx)$/i.test(file.name); if (!allowed) { notify('Please upload a PDF, Word or PowerPoint file.'); return; } const resource = { id: `resource-${Date.now()}`, title: $('#resourceTitle').value.trim(), department: $('#resourceDepartment').value, category: $('#resourceCategory').value, recommended: $('#resourceRecommended').checked, fileName: file.name, fileType: fileType(file.name), file, dataUrl: await readFile(file), createdAt: new Date().toISOString() }; try { resources.unshift(await insertCloudResource(resource)); save(); renderResources(); renderAssignmentOptions(); closeModal('resourceModal'); event.target.reset(); notify('Resource added successfully.'); } catch (error) { console.error('Resource upload failed:', error); notify(`Upload failed: ${error.message || 'Supabase rejected the request.'}`); } });
-$('#assignmentForm').addEventListener('submit', async (event) => { event.preventDefault(); const selectedEmployees = Array.from($('#assignmentEmployee').selectedOptions).map((option) => option.value).filter(Boolean); const resourceId = $('#assignmentResource').value; if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course or test.'); return; } const assignmentsToCreate = selectedEmployees.map((employeeId) => ({ id: `training-${Date.now()}-${employeeId}`, employeeId, resourceId, quarter: $('#assignmentQuarter').value, assignedDate: new Date().toISOString().slice(0, 10), dueDate: $('#assignmentDue').value, status: $('#assignmentStatus').value })); try { const createdAssignments = await Promise.all(assignmentsToCreate.map((assignment) => insertCloudAssignment(assignment))); assignments.unshift(...createdAssignments); save(); renderTracker(); closeModal('assignmentModal'); event.target.reset(); notify(selectedEmployees.length > 1 ? 'Development activity assigned to selected employees.' : 'Development activity assigned successfully.'); } catch (error) { notify('Development activity could not be saved to Supabase.'); } });
+$('#assignmentForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const selectedEmployees = Array.from($('#assignmentEmployee').selectedOptions).map((option) => option.value).filter(Boolean);
+  const resourceId = $('#assignmentResource').value;
+  if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course or test.'); return; }
+  const skillsToDevelop = [...new Set($('#assignmentSkills').value.split(/[\n,]/).map((skill) => skill.trim()).filter(Boolean))];
+  const assignmentsToCreate = selectedEmployees.map((employeeId) => ({ id: `training-${Date.now()}-${employeeId}`, employeeId, resourceId, quarter: $('#assignmentQuarter').value, assignedDate: new Date().toISOString().slice(0, 10), dueDate: $('#assignmentDue').value, status: $('#assignmentStatus').value, skillsToDevelop }));
+  try {
+    const createdAssignments = await Promise.all(assignmentsToCreate.map((assignment) => insertCloudAssignment(assignment)));
+    assignments.unshift(...createdAssignments);
+    save();
+    renderTracker();
+    renderEmployeeLearning();
+    window.dispatchEvent(new Event('development-modules-refresh'));
+    closeModal('assignmentModal');
+    event.target.reset();
+    notify(selectedEmployees.length > 1 ? 'Development activity and skill goals assigned.' : 'Development activity and skill goals assigned.');
+  } catch (error) {
+    console.error('Training assignment failed:', error);
+    notify(`Development activity could not be saved: ${error.message || 'Supabase rejected the request.'}`);
+  }
+});
 document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); const resourceId = resourceButton.dataset.deleteResource; const resource = resources.find((item) => item.id === resourceId); if (client && !resourceId.startsWith('resource-')) { if (resource?.filePath) { const { error } = await client.storage.from(resourceBucket).remove([resource.filePath]); if (error) { console.error('Resource file deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } const { error } = await client.from('development_resources').delete().eq('id', resourceId); if (error) { console.error('Resource deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } resources = resources.filter((item) => item.id !== resourceId); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
 document.addEventListener('change', async (event) => {
   const status = event.target.closest('[data-status-assignment]');
@@ -308,18 +343,56 @@ document.addEventListener('change', async (event) => {
     assignment.completedDate = nextStatus === 'Completed' ? new Date().toISOString().slice(0, 10) : null;
     save();
     renderTracker();
-    if (issuesCertificate) {
-      window.dispatchEvent(new Event('development-modules-refresh'));
-      notify('Course completed. Its certificate is issued and valid for one year.');
-    } else {
-      notify('Training status updated.');
-    }
+    window.dispatchEvent(new Event('development-modules-refresh'));
+    if (issuesCertificate && assignment.resultStatus === 'Passed') notify('Course completed. Its one-year certificate is available in the Certificates section.');
+    else if (issuesCertificate) notify('Course completed. Mark it Passed to issue a one-year completion certificate.');
+    else notify('Training status updated.');
   } catch (error) {
     status.value = previousStatus;
     console.error('Training status update failed:', error);
     notify(`Training status update failed: ${error.message}`);
   }
 });
+document.addEventListener('change', async (event) => {
+  const result = event.target.closest('[data-result-assignment]');
+  if (!result) return;
+  const assignment = assignments.find((item) => item.id === result.dataset.resultAssignment);
+  if (!assignment) return;
+  const previousResult = assignment.resultStatus || 'Pending';
+  if (assignment.status !== 'Completed') {
+    result.value = previousResult;
+    notify('Mark the training Completed before recording an outcome.');
+    return;
+  }
+  if (assignment.resultSource === 'assessment') {
+    result.value = previousResult;
+    notify('This result is set by the latest assessment score.');
+    return;
+  }
+  const client = cloudClient();
+  if (!client || assignment.id.startsWith('training-')) {
+    result.value = previousResult;
+    notify('Sign in to Supabase before recording training outcomes.');
+    return;
+  }
+  const passedDate = result.value === 'Passed' ? new Date().toISOString().slice(0, 10) : null;
+  const { data, error } = await client.from('training_assignments').update({ result_status: result.value, result_source: 'manual', passed_date: passedDate }).eq('id', assignment.id).select('result_status, result_source, passed_date, training_valid_until').single();
+  if (error) {
+    result.value = previousResult;
+    console.error('Training outcome update failed:', error);
+    notify(`Training outcome could not be saved: ${error.message}`);
+    return;
+  }
+  assignment.resultStatus = data.result_status;
+  assignment.resultSource = data.result_source;
+  assignment.passedDate = data.passed_date;
+  assignment.trainingValidUntil = data.training_valid_until;
+  save();
+  renderTracker();
+  window.dispatchEvent(new Event('development-modules-refresh'));
+  notify(data.result_status === 'Passed' ? `Training passed. Valid through ${data.training_valid_until}.` : `Training outcome recorded: ${data.result_status}.`);
+});
+window.addEventListener('development-modules-refresh', () => { void loadCloudDevelopmentData(); });
 renderResources();
 renderDashboard();
 renderEmployeeLearning();
