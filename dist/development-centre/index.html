@@ -35,6 +35,7 @@
       <button class="section-tab" data-view="learning">Employee portal</button>
       <button class="section-tab" data-view="library">Resource library</button>
       <button class="section-tab" data-view="tracker">Training tracker</button>
+      <button class="section-tab" data-view="modules">Development records</button>
     </nav>
 
     <section class="view active" id="dashboardView">
@@ -43,8 +44,8 @@
       <div class="dashboard-grid">
         <section class="dashboard-panel dashboard-wide"><div class="panel-heading"><div><span class="eyebrow">Completion by department</span><h3>Mandatory training progress</h3></div></div><div id="departmentCompletion"></div></section>
         <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Learning calendar</span><h3>Upcoming courses</h3></div></div><div id="upcomingCourses"></div></section>
-        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Risk signals</span><h3>Certification alerts</h3></div></div><div class="dashboard-empty"><strong>Certification tracking is ready to configure.</strong><span>Add certification records to activate expiry alerts.</span></div></section>
-        <section class="dashboard-panel dashboard-wide"><div class="panel-heading"><div><span class="eyebrow">Capability planning</span><h3>Skills gap and promotion readiness</h3></div></div><div class="dashboard-split"><div class="dashboard-empty"><strong>Competency matrix</strong><span>Connect required and current skills to surface development gaps.</span></div><div class="dashboard-empty"><strong>Talent pool</strong><span>Add readiness levels for future managers and critical successors.</span></div></div></section>
+        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Risk signals</span><h3>Certification alerts</h3></div></div><div id="certificationAlerts"></div></section>
+        <section class="dashboard-panel dashboard-wide"><div class="panel-heading"><div><span class="eyebrow">Capability planning</span><h3>Skills gap and promotion readiness</h3></div></div><div class="dashboard-split"><div id="skillGapSummary"></div><div class="dashboard-empty"><strong>Talent pool access not configured</strong><span>Succession and promotion-readiness data needs a restricted access policy.</span></div></div></section>
         <section class="dashboard-panel dashboard-wide"><div class="panel-heading"><div><span class="eyebrow">Productivity impact</span><h3>Training effectiveness</h3></div></div><div class="impact-levels"><div><strong>Level 1</strong><span>Satisfaction</span></div><div><strong>Level 2</strong><span>Knowledge retention</span></div><div><strong>Level 3</strong><span>Behaviour change</span></div><div><strong>Level 4</strong><span>Performance improvement</span></div><div><strong>Level 5</strong><span>Business impact</span></div></div></section>
       </div>
     </section>
@@ -59,10 +60,10 @@
         <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Assigned learning</span><h3>Current courses</h3></div></div><div id="assignedLearning"></div></section>
         <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Assessment centre</span><h3>Exams &amp; tests</h3></div></div><div id="employeeAssessments"></div></section>
         <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Skills development</span><h3>My skills gaps</h3></div></div><div id="learningSkills"></div></section>
-        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Certification wallet</span><h3>My certificates</h3></div></div><div class="dashboard-empty"><strong>No certificates recorded yet.</strong><span>Certificates will appear here after certification tracking is configured.</span></div></section>
+        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Certification wallet</span><h3>My certificates</h3></div></div><div id="learningCertificates"></div></section>
         <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Individual development plan</span><h3>My development goals</h3></div></div><div id="learningPlan"></div></section>
         <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Recommended for you</span><h3>Next best learning</h3></div></div><div class="recommendation-list" id="employeeRecommendations"></div></section>
-        <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Performance impact</span><h3>How learning affects my work</h3></div></div><div class="dashboard-empty"><strong>Impact tracking is ready to configure.</strong><span>Connect before-and-after performance measures to show the value of completed learning.</span></div></section>
+        <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Performance impact</span><h3>How learning affects my work</h3></div></div><div id="learningImpact"></div></section>
       </div>
     </section>
 
@@ -91,12 +92,30 @@
       <div class="tracker-controls"><label>Search<input id="trainingSearch" type="search" placeholder="Search employee or training" /></label><label>Status<select id="trainingStatusFilter"><option value="all">All statuses</option><option>Assigned</option><option>In progress</option><option>Completed</option><option value="overdue">Overdue</option></select></label><label>Department<select id="trainingDepartmentFilter"><option value="all">All departments</option></select></label></div>
       <div class="tracker-table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Training</th><th>Assigned</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="trainingRows"></tbody></table></div>
     </section>
+
+    <section class="view" id="modulesView">
+      <div class="view-heading"><div><span class="eyebrow">People development</span><h2>Development records</h2></div></div>
+      <nav class="module-tabs" aria-label="Development record modules">
+        <button class="resource-tab active" type="button" data-module-view="plans">Development plans</button>
+        <button class="resource-tab" type="button" data-module-view="skills">Skills gaps</button>
+        <button class="resource-tab" type="button" data-module-view="certificates">Certificates</button>
+        <button class="resource-tab" type="button" data-module-view="assessments">Exam results</button>
+        <button class="resource-tab" type="button" data-module-view="impact">Training impact</button>
+      </nav>
+      <section class="module-panel active" id="modulePanel-plans"><div class="view-heading"><div><h3>Individual development plans</h3><p>Goals, actions, due dates, and progress.</p></div><button class="primary-button" type="button" data-add-module="plans">+ Add goal</button></div><div class="module-record-list" id="moduleList-plans"></div></section>
+      <section class="module-panel" id="modulePanel-skills"><div class="view-heading"><div><h3>Skills and competency gaps</h3><p>Compare current skill levels with role targets on a 1–5 scale.</p></div><button class="primary-button" type="button" data-add-module="skills">+ Assess skill</button></div><div class="module-record-list" id="moduleList-skills"></div></section>
+      <section class="module-panel" id="modulePanel-certificates"><div class="view-heading"><div><h3>Certificates</h3><p>Track issuers, expiry dates, and optional PDF evidence.</p></div><button class="primary-button" type="button" data-add-module="certificates">+ Add certificate</button></div><div class="module-record-list" id="moduleList-certificates"></div></section>
+      <section class="module-panel" id="modulePanel-assessments"><div class="view-heading"><div><h3>Exam and assessment results</h3><p>Record attempts against tests already assigned in the training tracker.</p></div><button class="primary-button" type="button" data-add-module="assessments">+ Record result</button></div><div class="module-record-list" id="moduleList-assessments"></div></section>
+      <section class="module-panel" id="modulePanel-impact"><div class="view-heading"><div><h3>Training impact</h3><p>Compare a performance measure before and after a learning assignment.</p></div><button class="primary-button" type="button" data-add-module="impact">+ Record impact</button></div><div class="module-record-list" id="moduleList-impact"></div></section>
+    </section>
   </main>
 
   <div class="modal" id="resourceModal" aria-hidden="true"><form class="form-card" id="resourceForm"><button class="modal-close" type="button" data-close="resourceModal">×</button><span class="eyebrow">Resource library</span><h2>Add resource</h2><label>Title<input id="resourceTitle" required placeholder="e.g. Customer service standards" /></label><div class="form-grid"><label>Department<select id="resourceDepartment" required><option value="">Select department</option><option>HR</option><option>Operations</option><option>Procurement</option><option>Engineering</option><option>IT</option><option>Customer Service</option><option>Company-wide</option></select></label><label>Type<select id="resourceCategory" required><option>Job descriptions</option><option>Processes</option><option>Policies</option><option>Courses</option><option>Trainings</option><option>Tests</option></select></label></div><label class="checkbox-label"><input id="resourceRecommended" type="checkbox" /> Recommend for employee development</label><label>File<input id="resourceFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" required /></label><p class="form-note">Supported: PDF, Word and PowerPoint files.</p><div class="form-actions"><button class="secondary-button" type="button" data-close="resourceModal">Cancel</button><button class="primary-button" type="submit">Save resource</button></div></form></div>
 
   <div class="modal" id="assignmentModal" aria-hidden="true"><form class="form-card" id="assignmentForm"><button class="modal-close" type="button" data-close="assignmentModal">×</button><span class="eyebrow">Employee learning</span><h2>Assign training or test</h2><label>Employee(s)<select id="assignmentEmployee" multiple size="6" required></select></label><label>Course, training or test<select id="assignmentResource" required></select></label><div class="form-grid"><label>Quarter<select id="assignmentQuarter" required></select></label><label>Due date<input id="assignmentDue" type="date" required /></label><label>Status<select id="assignmentStatus"><option>Assigned</option><option>In progress</option><option>Completed</option></select></label></div><div class="form-actions"><button class="secondary-button" type="button" data-close="assignmentModal">Cancel</button><button class="primary-button" type="submit">Save assignment</button></div></form></div>
+  <div class="modal" id="moduleModal" aria-hidden="true"><form class="form-card" id="developmentRecordForm"><button class="modal-close" type="button" data-close-module-modal>×</button><span class="eyebrow">Development records</span><h2 id="moduleFormTitle">Add record</h2><div id="moduleFormFields"></div><div class="form-actions"><button class="secondary-button" type="button" data-close-module-modal>Cancel</button><button class="primary-button" type="submit">Save record</button></div></form></div>
   <div class="toast" id="devToast"></div>
   <script src="app.js"></script>
+  <script src="modules.js"></script>
 </body>
 </html>

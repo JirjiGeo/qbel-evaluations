@@ -1,5 +1,6 @@
 const libraryKey = 'qbel-development-library';
 const trainingKey = 'qbel-development-training';
+const resourceBucket = 'development-resources';
 let resources = JSON.parse(localStorage.getItem(libraryKey) || '[]');
 let assignments = JSON.parse(localStorage.getItem(trainingKey) || '[]');
 let activeResourceCategory = 'Job descriptions';
@@ -20,11 +21,11 @@ async function loadCloudDevelopmentData() {
   const client = cloudClient();
   if (!client) return;
   const [{ data: cloudResources, error: resourceError }, { data: cloudAssignments, error: assignmentError }] = await Promise.all([
-    client.from('development_resources').select('id, title, department, category, file_name, file_type, recommended, created_at').order('created_at', { ascending: true }),
+    client.from('development_resources').select('id, title, department, category, file_name, file_type, file_path, recommended, created_at').order('created_at', { ascending: true }),
     client.from('training_assignments').select('*').order('created_at', { ascending: true })
   ]);
   if (resourceError || assignmentError) { notify('Development Centre cloud data could not be loaded.'); return; }
-  if (cloudResources?.length) resources = cloudResources.map((resource) => ({ id: resource.id, title: resource.title, department: resource.department, category: resource.category, recommended: resource.recommended, fileName: resource.file_name, fileType: resource.file_type, dataUrl: null, createdAt: resource.created_at }));
+  if (cloudResources?.length) resources = cloudResources.map((resource) => ({ id: resource.id, title: resource.title, department: resource.department, category: resource.category, recommended: resource.recommended, fileName: resource.file_name, fileType: resource.file_type, filePath: resource.file_path, dataUrl: null, createdAt: resource.created_at }));
   else if (resources.length) {
     const migratedResources = [];
     for (const resource of resources) migratedResources.push(await insertCloudResource(resource));
@@ -36,12 +37,32 @@ async function loadCloudDevelopmentData() {
   save(); renderResources(); renderAssignmentOptions(); renderDashboard(); renderEmployeeLearning();
   if ($('#trackerView').classList.contains('active')) renderTracker();
 }
-async function insertCloudResource(resource) { const client = cloudClient(); if (!client) return resource; const { data, error } = await client.from('development_resources').insert({ title: resource.title, department: resource.department, category: resource.category, recommended: resource.recommended, file_name: resource.fileName, file_type: resource.fileType, file_data: resource.dataUrl }).select('id, title, department, category, recommended, file_name, file_type, created_at').single(); if (error) throw error; return { ...resource, id: data.id, createdAt: data.created_at }; }
+async function insertCloudResource(resource) {
+  const client = cloudClient();
+  if (!client) return resource;
+  const file = resource.file || (resource.dataUrl ? await (await fetch(resource.dataUrl)).blob() : null);
+  if (!file) throw new Error('The selected file could not be read.');
+  const filePath = `${crypto.randomUUID()}/${resource.fileName.replace(/[\\/]/g, '_')}`;
+  const { error: uploadError } = await client.storage.from(resourceBucket).upload(filePath, file, { contentType: file.type || 'application/octet-stream' });
+  if (uploadError) throw uploadError;
+  const { data, error } = await client.from('development_resources').insert({ title: resource.title, department: resource.department, category: resource.category, recommended: resource.recommended, file_name: resource.fileName, file_type: resource.fileType, file_path: filePath, file_data: null }).select('id, title, department, category, recommended, file_name, file_type, file_path, created_at').single();
+  if (error) {
+    await client.storage.from(resourceBucket).remove([filePath]);
+    throw error;
+  }
+  return { ...resource, id: data.id, filePath: data.file_path, dataUrl: null, file: undefined, createdAt: data.created_at };
+}
 async function insertCloudAssignment(assignment) { const client = cloudClient(); if (!client) return assignment; const { data, error } = await client.from('training_assignments').insert({ employee_id: assignment.employeeId, resource_id: assignment.resourceId, quarter: assignment.quarter, assigned_date: assignment.assignedDate, due_date: assignment.dueDate || null, status: assignment.status, completed_date: assignment.completedDate || null }).select().single(); if (error) throw error; return { ...assignment, id: data.id }; }
 async function loadResourceFile(resource) {
   if (resource.dataUrl) return resource;
   const client = cloudClient();
   if (!client || resource.id.startsWith('resource-')) throw new Error('Resource file is unavailable.');
+  if (resource.filePath) {
+    const { data, error } = await client.storage.from(resourceBucket).download(resource.filePath);
+    if (error) throw error;
+    resource.dataUrl = await readFile(data);
+    return resource;
+  }
   const { data, error } = await client.from('development_resources').select('file_data').eq('id', resource.id).single();
   if (error || !data?.file_data) throw error || new Error('Resource file is unavailable.');
   resource.dataUrl = data.file_data;
@@ -241,11 +262,11 @@ function renderLearningProfile() {
   $('#upcomingTrainings').innerHTML = renderList(upcoming);
   $('#coursesTaken').innerHTML = renderList(courses);
 }
-function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } }
+function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); $('#modulesView').classList.toggle('active', view === 'modules'); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } if (view === 'modules') window.renderDevelopmentModules?.(); }
 
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
-document.querySelectorAll('[data-learning-action]').forEach((button) => button.addEventListener('click', () => { const action = button.dataset.learningAction; if (['library', 'tracker'].includes(action)) switchView(action); else notify(`${button.textContent.trim()} will be available when this data is configured.`); }));
-document.querySelectorAll('.resource-tab').forEach((tab) => tab.addEventListener('click', () => { activeResourceCategory = tab.dataset.resourceCategory; document.querySelectorAll('.resource-tab').forEach((item) => item.classList.toggle('active', item === tab)); closeResourcePreview(); renderResources(); }));
+document.querySelectorAll('[data-learning-action]').forEach((button) => button.addEventListener('click', () => { const action = button.dataset.learningAction; if (['library', 'tracker'].includes(action)) switchView(action); else if (window.openDevelopmentModule) window.openDevelopmentModule(action); else notify(`${button.textContent.trim()} is not available yet.`); }));
+document.querySelectorAll('.resource-tabs .resource-tab').forEach((tab) => tab.addEventListener('click', () => { activeResourceCategory = tab.dataset.resourceCategory; document.querySelectorAll('.resource-tabs .resource-tab').forEach((item) => item.classList.toggle('active', item === tab)); closeResourcePreview(); renderResources(); }));
 $('#openResourceForm').addEventListener('click', () => openModal('resourceModal'));
 $('#openAssignmentForm').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#dashboardAssignButton').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
@@ -259,9 +280,9 @@ $('#trackerQuarter').addEventListener('change', (event) => { selectedQuarter = e
 $('#trainingSearch').addEventListener('input', renderTracker);
 $('#trainingStatusFilter').addEventListener('change', renderTracker);
 $('#trainingDepartmentFilter').addEventListener('change', renderTracker);
-$('#resourceForm').addEventListener('submit', async (event) => { event.preventDefault(); const file = $('#resourceFile').files[0]; if (!file) return; const allowed = /\.(pdf|doc|docx|ppt|pptx)$/i.test(file.name); if (!allowed) { notify('Please upload a PDF, Word or PowerPoint file.'); return; } const resource = { id: `resource-${Date.now()}`, title: $('#resourceTitle').value.trim(), department: $('#resourceDepartment').value, category: $('#resourceCategory').value, recommended: $('#resourceRecommended').checked, fileName: file.name, fileType: fileType(file.name), dataUrl: await readFile(file), createdAt: new Date().toISOString() }; try { resources.unshift(await insertCloudResource(resource)); save(); renderResources(); renderAssignmentOptions(); closeModal('resourceModal'); event.target.reset(); notify('Resource added successfully.'); } catch (error) { notify('Resource could not be saved to Supabase.'); } });
+$('#resourceForm').addEventListener('submit', async (event) => { event.preventDefault(); const file = $('#resourceFile').files[0]; if (!file) return; const allowed = /\.(pdf|doc|docx|ppt|pptx)$/i.test(file.name); if (!allowed) { notify('Please upload a PDF, Word or PowerPoint file.'); return; } const resource = { id: `resource-${Date.now()}`, title: $('#resourceTitle').value.trim(), department: $('#resourceDepartment').value, category: $('#resourceCategory').value, recommended: $('#resourceRecommended').checked, fileName: file.name, fileType: fileType(file.name), file, dataUrl: await readFile(file), createdAt: new Date().toISOString() }; try { resources.unshift(await insertCloudResource(resource)); save(); renderResources(); renderAssignmentOptions(); closeModal('resourceModal'); event.target.reset(); notify('Resource added successfully.'); } catch (error) { console.error('Resource upload failed:', error); notify(`Upload failed: ${error.message || 'Supabase rejected the request.'}`); } });
 $('#assignmentForm').addEventListener('submit', async (event) => { event.preventDefault(); const selectedEmployees = Array.from($('#assignmentEmployee').selectedOptions).map((option) => option.value).filter(Boolean); const resourceId = $('#assignmentResource').value; if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course or test.'); return; } const assignmentsToCreate = selectedEmployees.map((employeeId) => ({ id: `training-${Date.now()}-${employeeId}`, employeeId, resourceId, quarter: $('#assignmentQuarter').value, assignedDate: new Date().toISOString().slice(0, 10), dueDate: $('#assignmentDue').value, status: $('#assignmentStatus').value })); try { const createdAssignments = await Promise.all(assignmentsToCreate.map((assignment) => insertCloudAssignment(assignment))); assignments.unshift(...createdAssignments); save(); renderTracker(); closeModal('assignmentModal'); event.target.reset(); notify(selectedEmployees.length > 1 ? 'Development activity assigned to selected employees.' : 'Development activity assigned successfully.'); } catch (error) { notify('Development activity could not be saved to Supabase.'); } });
-document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); if (client && !resourceButton.dataset.deleteResource.startsWith('resource-')) await client.from('development_resources').delete().eq('id', resourceButton.dataset.deleteResource); resources = resources.filter((resource) => resource.id !== resourceButton.dataset.deleteResource); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
+document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); const resourceId = resourceButton.dataset.deleteResource; const resource = resources.find((item) => item.id === resourceId); if (client && !resourceId.startsWith('resource-')) { if (resource?.filePath) { const { error } = await client.storage.from(resourceBucket).remove([resource.filePath]); if (error) { console.error('Resource file deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } const { error } = await client.from('development_resources').delete().eq('id', resourceId); if (error) { console.error('Resource deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } resources = resources.filter((item) => item.id !== resourceId); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
 document.addEventListener('change', async (event) => { const status = event.target.closest('[data-status-assignment]'); if (!status) return; const assignment = assignments.find((item) => item.id === status.dataset.statusAssignment); if (assignment) { assignment.status = status.value; const client = cloudClient(); if (client && !assignment.id.startsWith('training-')) await client.from('training_assignments').update({ status: assignment.status, completed_date: assignment.status === 'Completed' ? new Date().toISOString().slice(0, 10) : null }).eq('id', assignment.id); save(); renderTracker(); notify('Training status updated.'); } });
 renderResources();
 renderDashboard();

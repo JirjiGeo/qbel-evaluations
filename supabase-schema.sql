@@ -63,7 +63,8 @@ create table if not exists public.development_resources (
   recommended boolean not null default false,
   file_name text not null,
   file_type text not null,
-  file_data text not null,
+  file_data text,
+  file_path text,
   created_at timestamptz not null default now()
 );
 
@@ -79,8 +80,114 @@ create table if not exists public.training_assignments (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.development_plans (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references public.employees(id) on delete cascade,
+  goal text not null,
+  action_plan text not null,
+  due_date date not null,
+  status text not null default 'Planned' check (status in ('Planned','In progress','Completed','On hold')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.development_skills (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references public.employees(id) on delete cascade,
+  competency text not null,
+  current_level smallint not null check (current_level between 1 and 5),
+  target_level smallint not null check (target_level between 1 and 5),
+  assessed_on date not null default current_date,
+  created_at timestamptz not null default now(),
+  unique (employee_id, competency)
+);
+
+create table if not exists public.employee_certifications (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references public.employees(id) on delete cascade,
+  certificate_name text not null,
+  issuer text,
+  issued_on date,
+  expires_on date,
+  file_name text,
+  file_path text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.training_assessment_results (
+  id uuid primary key default gen_random_uuid(),
+  assignment_id uuid not null references public.training_assignments(id) on delete cascade,
+  attempted_on date not null default current_date,
+  score numeric(5,2) not null check (score between 0 and 100),
+  pass_mark numeric(5,2) not null default 70 check (pass_mark between 0 and 100),
+  passed boolean not null check (passed = (score >= pass_mark)),
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.training_impact_records (
+  id uuid primary key default gen_random_uuid(),
+  assignment_id uuid not null references public.training_assignments(id) on delete cascade,
+  measure text not null,
+  before_value numeric(12,2) not null,
+  after_value numeric(12,2) not null,
+  measured_on date not null default current_date,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.development_plans enable row level security;
+alter table public.development_skills enable row level security;
+alter table public.employee_certifications enable row level security;
+alter table public.training_assessment_results enable row level security;
+alter table public.training_impact_records enable row level security;
+
+create index if not exists development_plans_employee_id_idx on public.development_plans(employee_id);
+create index if not exists development_skills_employee_id_idx on public.development_skills(employee_id);
+create index if not exists employee_certifications_employee_id_idx on public.employee_certifications(employee_id);
+create index if not exists employee_certifications_expires_on_idx on public.employee_certifications(expires_on);
+create index if not exists training_assessment_results_assignment_id_idx on public.training_assessment_results(assignment_id);
+create index if not exists training_impact_records_assignment_id_idx on public.training_impact_records(assignment_id);
+
+insert into storage.buckets (id, name, public)
+values ('development-certificates', 'development-certificates', false)
+on conflict (id) do update set public = false;
+
+drop policy if exists "Authenticated users can read development plans" on public.development_plans;
+drop policy if exists "Authenticated users can insert development plans" on public.development_plans;
+drop policy if exists "Authenticated users can update development plans" on public.development_plans;
+drop policy if exists "Authenticated users can delete development plans" on public.development_plans;
+drop policy if exists "Authenticated users can read development skills" on public.development_skills;
+drop policy if exists "Authenticated users can insert development skills" on public.development_skills;
+drop policy if exists "Authenticated users can update development skills" on public.development_skills;
+drop policy if exists "Authenticated users can delete development skills" on public.development_skills;
+drop policy if exists "Authenticated users can read employee certifications" on public.employee_certifications;
+drop policy if exists "Authenticated users can insert employee certifications" on public.employee_certifications;
+drop policy if exists "Authenticated users can update employee certifications" on public.employee_certifications;
+drop policy if exists "Authenticated users can delete employee certifications" on public.employee_certifications;
+drop policy if exists "Authenticated users can read training assessment results" on public.training_assessment_results;
+drop policy if exists "Authenticated users can insert training assessment results" on public.training_assessment_results;
+drop policy if exists "Authenticated users can update training assessment results" on public.training_assessment_results;
+drop policy if exists "Authenticated users can delete training assessment results" on public.training_assessment_results;
+drop policy if exists "Authenticated users can read training impact records" on public.training_impact_records;
+drop policy if exists "Authenticated users can insert training impact records" on public.training_impact_records;
+drop policy if exists "Authenticated users can update training impact records" on public.training_impact_records;
+drop policy if exists "Authenticated users can delete training impact records" on public.training_impact_records;
+drop policy if exists "Authenticated users can read development certificate files" on storage.objects;
+drop policy if exists "Authenticated users can upload development certificate files" on storage.objects;
+drop policy if exists "Authenticated users can delete development certificate files" on storage.objects;
+
 alter table public.development_resources add column if not exists recommended boolean not null default false;
+alter table public.development_resources add column if not exists file_path text;
+alter table public.development_resources alter column file_data drop not null;
 alter table public.training_assignments add column if not exists quarter text not null default '';
+
+insert into storage.buckets (id, name, public)
+values ('development-resources', 'development-resources', false)
+on conflict (id) do update set public = false;
+
+drop policy if exists "Authenticated users can read development resource files" on storage.objects;
+drop policy if exists "Authenticated users can upload development resource files" on storage.objects;
+drop policy if exists "Authenticated users can delete development resource files" on storage.objects;
 
 create index if not exists development_resources_created_at_idx on public.development_resources(created_at desc);
 create index if not exists training_assignments_employee_id_idx on public.training_assignments(employee_id);
@@ -124,4 +231,63 @@ create policy "Authenticated users can update training assignments"
   on public.training_assignments for update to authenticated using (true) with check (true);
 create policy "Authenticated users can delete training assignments"
   on public.training_assignments for delete to authenticated using (true);
+
+create policy "Authenticated users can read development resource files"
+  on storage.objects for select to authenticated using (bucket_id = 'development-resources');
+create policy "Authenticated users can upload development resource files"
+  on storage.objects for insert to authenticated with check (bucket_id = 'development-resources');
+create policy "Authenticated users can delete development resource files"
+  on storage.objects for delete to authenticated using (bucket_id = 'development-resources');
+
+create policy "Authenticated users can read development plans"
+  on public.development_plans for select to authenticated using (true);
+create policy "Authenticated users can insert development plans"
+  on public.development_plans for insert to authenticated with check (true);
+create policy "Authenticated users can update development plans"
+  on public.development_plans for update to authenticated using (true) with check (true);
+create policy "Authenticated users can delete development plans"
+  on public.development_plans for delete to authenticated using (true);
+
+create policy "Authenticated users can read development skills"
+  on public.development_skills for select to authenticated using (true);
+create policy "Authenticated users can insert development skills"
+  on public.development_skills for insert to authenticated with check (true);
+create policy "Authenticated users can update development skills"
+  on public.development_skills for update to authenticated using (true) with check (true);
+create policy "Authenticated users can delete development skills"
+  on public.development_skills for delete to authenticated using (true);
+
+create policy "Authenticated users can read employee certifications"
+  on public.employee_certifications for select to authenticated using (true);
+create policy "Authenticated users can insert employee certifications"
+  on public.employee_certifications for insert to authenticated with check (true);
+create policy "Authenticated users can update employee certifications"
+  on public.employee_certifications for update to authenticated using (true) with check (true);
+create policy "Authenticated users can delete employee certifications"
+  on public.employee_certifications for delete to authenticated using (true);
+
+create policy "Authenticated users can read training assessment results"
+  on public.training_assessment_results for select to authenticated using (true);
+create policy "Authenticated users can insert training assessment results"
+  on public.training_assessment_results for insert to authenticated with check (true);
+create policy "Authenticated users can update training assessment results"
+  on public.training_assessment_results for update to authenticated using (true) with check (true);
+create policy "Authenticated users can delete training assessment results"
+  on public.training_assessment_results for delete to authenticated using (true);
+
+create policy "Authenticated users can read training impact records"
+  on public.training_impact_records for select to authenticated using (true);
+create policy "Authenticated users can insert training impact records"
+  on public.training_impact_records for insert to authenticated with check (true);
+create policy "Authenticated users can update training impact records"
+  on public.training_impact_records for update to authenticated using (true) with check (true);
+create policy "Authenticated users can delete training impact records"
+  on public.training_impact_records for delete to authenticated using (true);
+
+create policy "Authenticated users can read development certificate files"
+  on storage.objects for select to authenticated using (bucket_id = 'development-certificates');
+create policy "Authenticated users can upload development certificate files"
+  on storage.objects for insert to authenticated with check (bucket_id = 'development-certificates');
+create policy "Authenticated users can delete development certificate files"
+  on storage.objects for delete to authenticated using (bucket_id = 'development-certificates');
 
