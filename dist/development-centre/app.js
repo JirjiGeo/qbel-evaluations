@@ -149,6 +149,9 @@ function renderDashboard() {
   const activeLearners = new Set(assignments.filter((assignment) => assignment.status !== 'Completed').map((assignment) => assignment.employeeId));
   const completedCourses = assignments.filter((assignment) => assignment.status === 'Completed' && resourceMap.get(assignment.resourceId)?.category === 'Courses').length;
   const completionRate = assignments.length ? Math.round((assignments.filter((assignment) => assignment.status === 'Completed').length / assignments.length) * 100) : 0;
+  const coveredEmployees = new Set(assignments.map((assignment) => assignment.employeeId));
+  const directoryCoverage = activeEmployees.length ? Math.round((coveredEmployees.size / activeEmployees.length) * 100) : 0;
+  const certificateCount = activeEmployees.reduce((total, employee) => total + (window.getEmployeeCertificateCount?.(employee.id) || 0), 0);
   $('#dashboardKpis').innerHTML = [
     ['Total employees', activeEmployees.length, 'Current directory'],
     ['Active learners', activeLearners.size, 'With open development activity'],
@@ -157,6 +160,10 @@ function renderDashboard() {
     ['Exam pass rate', 'Set up', 'Assessment results required'],
     ['Active IDPs', 'Set up', 'Development plans required']
   ].map(([label, value, note]) => `<article class="dashboard-kpi"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join('');
+  $('#atlasActiveLearners').textContent = activeLearners.size;
+  $('#atlasCompletionRate').textContent = `${completionRate}%`;
+  $('#atlasCoverage').textContent = `${directoryCoverage}%`;
+  $('#atlasCertificates').textContent = certificateCount;
   const departmentCounts = [...new Set(activeEmployees.map((employee) => employee.department))].sort().map((department) => {
     const departmentIds = new Set(activeEmployees.filter((employee) => employee.department === department).map((employee) => employee.id));
     const departmentAssignments = assignments.filter((assignment) => departmentIds.has(assignment.employeeId));
