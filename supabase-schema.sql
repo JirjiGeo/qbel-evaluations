@@ -74,6 +74,8 @@ create table if not exists public.training_assignments (
   resource_id uuid not null references public.development_resources(id) on delete cascade,
   quarter text not null default '',
   assigned_date date not null default current_date,
+  scheduled_date date,
+  scheduled_time time without time zone,
   due_date date,
   status text not null default 'Assigned' check (status in ('Assigned','In progress','Completed')),
   completed_date date,
@@ -87,6 +89,8 @@ create table if not exists public.training_assignments (
 
 alter table public.training_assignments
   add column if not exists skills_to_develop text[] not null default '{}';
+alter table public.training_assignments add column if not exists scheduled_date date;
+alter table public.training_assignments add column if not exists scheduled_time time without time zone;
 alter table public.training_assignments add column if not exists result_status text not null default 'Pending';
 alter table public.training_assignments add column if not exists result_source text not null default 'manual';
 alter table public.training_assignments add column if not exists passed_date date;

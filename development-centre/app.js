@@ -33,7 +33,7 @@ async function loadCloudDevelopmentData() {
     resources = migratedResources;
     assignments = assignments.map((assignment) => ({ ...assignment, resourceId: resourceIds.get(assignment.resourceId) || assignment.resourceId }));
   }
-  if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
+  if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, scheduledDate: assignment.scheduled_date, scheduledTime: assignment.scheduled_time, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
   save(); renderResources(); renderAssignmentOptions(); renderDashboard(); renderEmployeeLearning();
   if ($('#trackerView').classList.contains('active')) renderTracker();
 }
@@ -52,7 +52,7 @@ async function insertCloudResource(resource) {
   }
   return { ...resource, id: data.id, filePath: data.file_path, dataUrl: null, file: undefined, createdAt: data.created_at };
 }
-async function insertCloudAssignment(assignment) { const client = cloudClient(); if (!client) return assignment; const { data, error } = await client.from('training_assignments').insert({ employee_id: assignment.employeeId, resource_id: assignment.resourceId, quarter: assignment.quarter, assigned_date: assignment.assignedDate, due_date: assignment.dueDate || null, status: assignment.status, completed_date: assignment.completedDate || null, skills_to_develop: assignment.skillsToDevelop || [] }).select().single(); if (error) throw error; return { ...assignment, id: data.id, resultStatus: data.result_status || 'Pending', resultSource: data.result_source || 'manual', passedDate: data.passed_date, trainingValidUntil: data.training_valid_until }; }
+async function insertCloudAssignment(assignment) { const client = cloudClient(); if (!client) return assignment; const { data, error } = await client.from('training_assignments').insert({ employee_id: assignment.employeeId, resource_id: assignment.resourceId, quarter: assignment.quarter, assigned_date: assignment.assignedDate, scheduled_date: assignment.scheduledDate || null, scheduled_time: assignment.scheduledTime || null, due_date: assignment.dueDate || null, status: assignment.status, completed_date: assignment.completedDate || null, skills_to_develop: assignment.skillsToDevelop || [] }).select().single(); if (error) throw error; return { ...assignment, id: data.id, scheduledDate: data.scheduled_date, scheduledTime: data.scheduled_time, resultStatus: data.result_status || 'Pending', resultSource: data.result_source || 'manual', passedDate: data.passed_date, trainingValidUntil: data.training_valid_until }; }
 async function loadResourceFile(resource) {
   if (resource.dataUrl) return resource;
   const client = cloudClient();
@@ -101,13 +101,20 @@ function renderEmployeeLearning() {
     return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : index + 1}</span><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Learning activity')} · ${escapeHtml(assignment.status)}</small>${skillNote}</div></div>`;
   }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
   const courseAssignments = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests');
-  const upcomingCourses = courseAssignments.filter((assignment) => assignment.status !== 'Completed').sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31')).slice(0, 4);
-  $('#learningUpcomingPreview').innerHTML = upcomingCourses.length ? upcomingCourses.map((assignment) => {
-    const resource = resourceMap.get(assignment.resourceId);
-    return `<article class="upcoming-course-row"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Course')} · ${escapeHtml(assignment.status)}</small></div><time>${escapeHtml(assignment.dueDate || 'No due date')}</time></article>`;
-  }).join('') : '<div class="course-empty">No upcoming courses.</div>';
+  const scheduledCourses = courseAssignments.filter((assignment) => assignment.status !== 'Completed' && assignment.scheduledDate).sort((first, second) => `${first.scheduledDate}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate}T${second.scheduledTime || '23:59'}`));
+  const nextCourse = scheduledCourses[0];
+  $('#nextCourseEmpty').hidden = Boolean(nextCourse);
+  $('#nextCourseDetails').hidden = !nextCourse;
+  if (nextCourse) {
+    const resource = resourceMap.get(nextCourse.resourceId);
+    $('#nextCourseTitle').textContent = resource?.title || 'Deleted resource';
+    $('#nextCourseDate').textContent = new Date(`${nextCourse.scheduledDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    $('#nextCourseTime').textContent = nextCourse.scheduledTime ? new Date(`1970-01-01T${nextCourse.scheduledTime}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : 'Time to be confirmed';
+    const skills = nextCourse.skillsToDevelop || nextCourse.skills_to_develop || [];
+    $('#nextCourseSkills').textContent = skills.length ? `Skills: ${skills.join(', ')}` : `${resource?.category || 'Course'} · ${nextCourse.status}`;
+  }
   const courseFilter = document.querySelector('[data-course-filter].active')?.dataset.courseFilter || 'upcoming';
-  const filteredCourses = courseAssignments.filter((assignment) => courseFilter === 'all' || (courseFilter === 'completed' ? assignment.status === 'Completed' : assignment.status !== 'Completed')).sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31'));
+  const filteredCourses = courseAssignments.filter((assignment) => courseFilter === 'all' || (courseFilter === 'completed' ? assignment.status === 'Completed' : assignment.status !== 'Completed')).sort((first, second) => `${first.scheduledDate || first.dueDate || '9999-12-31'}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate || second.dueDate || '9999-12-31'}T${second.scheduledTime || '23:59'}`));
   $('#employeeCourseCount').textContent = `${filteredCourses.length} of ${courseAssignments.length}`;
   $('#assignedLearning').innerHTML = filteredCourses.length ? filteredCourses.map((assignment) => {
     const resource = resourceMap.get(assignment.resourceId);
@@ -115,7 +122,11 @@ function renderEmployeeLearning() {
     const skills = assignment.skillsToDevelop || assignment.skills_to_develop || [];
     const skillLine = skills.length ? `<small class="course-row-skills">Skills: ${skills.map(escapeHtml).join(', ')}</small>` : '';
     const validity = assignment.trainingValidUntil ? `<span>Valid through ${escapeHtml(assignment.trainingValidUntil)}</span>` : '';
-    return `<article class="course-row"><div class="course-row-heading"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Course')} · Due ${escapeHtml(assignment.dueDate || 'No due date')}</small></div><span class="course-status course-status-${assignment.status.toLowerCase().replace(/\s+/g, '-')}">${escapeHtml(assignment.status)}</span></div><div class="course-row-details"><span>Result: ${escapeHtml(result)}</span>${validity}</div>${skillLine}</article>`;
+    const sessionDate = assignment.scheduledDate ? new Date(`${assignment.scheduledDate}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+    const sessionTime = assignment.scheduledTime ? new Date(`1970-01-01T${assignment.scheduledTime}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : null;
+    const session = sessionDate ? `Scheduled ${sessionDate}${sessionTime ? ` · ${sessionTime}` : ' · Time to be confirmed'}` : 'Session to be scheduled';
+    const dueDate = assignment.dueDate ? `<small>Due ${escapeHtml(assignment.dueDate)}</small>` : '';
+    return `<article class="course-row"><div class="course-row-heading"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small class="course-session">${session}</small>${dueDate}</div><span class="course-status course-status-${assignment.status.toLowerCase().replace(/\s+/g, '-')}" >${escapeHtml(assignment.status)}</span></div><div class="course-row-details"><span>Result: ${escapeHtml(result)}</span>${validity}</div>${skillLine}</article>`;
   }).join('') : `<div class="course-empty">${courseFilter === 'completed' ? 'No completed courses yet.' : courseFilter === 'upcoming' ? 'No upcoming courses currently assigned.' : 'No courses assigned yet.'}</div>`;
   $('#employeeAssessments').innerHTML = tests.length ? tests.map((assignment) => { const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted test')}</strong><small>${escapeHtml(assignment.status)} · ${escapeHtml(assignment.resultStatus || 'Pending')}</small></div><time>${escapeHtml(assignment.dueDate || 'No deadline')}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No exams assigned.</strong></div>';
 }
@@ -291,37 +302,7 @@ function renderLearningProfile() {
 }
 function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); $('#modulesView').classList.toggle('active', view === 'modules'); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } if (view === 'modules') window.renderDevelopmentModules?.(); }
 
-function activatePortalView(view, moveFocus = false) {
-  const tabs = [...document.querySelectorAll('[data-portal-view]')];
-  const selectedTab = tabs.find((tab) => tab.dataset.portalView === view);
-  if (!selectedTab) return;
-  tabs.forEach((tab) => {
-    const active = tab === selectedTab;
-    tab.classList.toggle('active', active);
-    tab.setAttribute('aria-selected', String(active));
-    tab.tabIndex = active ? 0 : -1;
-  });
-  document.querySelectorAll('[data-portal-panel]').forEach((panel) => {
-    const active = panel.dataset.portalPanel === view;
-    panel.classList.toggle('active', active);
-    panel.hidden = !active;
-  });
-  if (moveFocus) selectedTab.focus();
-}
-
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
-document.querySelectorAll('[data-portal-view]').forEach((tab) => {
-  tab.addEventListener('click', () => activatePortalView(tab.dataset.portalView));
-  tab.addEventListener('keydown', (event) => {
-    const tabs = [...document.querySelectorAll('[data-portal-view]')];
-    const index = tabs.indexOf(tab);
-    const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index - 1 + tabs.length) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
-    if (nextIndex < 0) return;
-    event.preventDefault();
-    activatePortalView(tabs[nextIndex].dataset.portalView, true);
-  });
-});
-document.querySelectorAll('[data-open-portal-view]').forEach((button) => button.addEventListener('click', () => activatePortalView(button.dataset.openPortalView)));
 document.querySelectorAll('[data-learning-action]').forEach((button) => button.addEventListener('click', () => { const action = button.dataset.learningAction; if (['library', 'tracker'].includes(action)) switchView(action); else if (window.openDevelopmentModule) window.openDevelopmentModule(action); else notify(`${button.textContent.trim()} is not available yet.`); }));
 document.querySelectorAll('.resource-tabs .resource-tab').forEach((tab) => tab.addEventListener('click', () => { activeResourceCategory = tab.dataset.resourceCategory; document.querySelectorAll('.resource-tabs .resource-tab').forEach((item) => item.classList.toggle('active', item === tab)); closeResourcePreview(); renderResources(); }));
 $('#openResourceForm').addEventListener('click', () => openModal('resourceModal'));
@@ -351,7 +332,9 @@ $('#assignmentForm').addEventListener('submit', async (event) => {
   const resourceId = $('#assignmentResource').value;
   if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course or test.'); return; }
   const skillsToDevelop = [...new Set($('#assignmentSkills').value.split(/[\n,]/).map((skill) => skill.trim()).filter(Boolean))];
-  const assignmentsToCreate = selectedEmployees.map((employeeId) => ({ id: `training-${Date.now()}-${employeeId}`, employeeId, resourceId, quarter: $('#assignmentQuarter').value, assignedDate: new Date().toISOString().slice(0, 10), dueDate: $('#assignmentDue').value, status: $('#assignmentStatus').value, skillsToDevelop }));
+  const scheduledDate = $('#assignmentScheduledDate').value;
+  const scheduledTime = $('#assignmentScheduledTime').value;
+  const assignmentsToCreate = selectedEmployees.map((employeeId) => ({ id: `training-${Date.now()}-${employeeId}`, employeeId, resourceId, quarter: $('#assignmentQuarter').value, assignedDate: new Date().toISOString().slice(0, 10), scheduledDate, scheduledTime, dueDate: $('#assignmentDue').value, status: $('#assignmentStatus').value, skillsToDevelop }));
   try {
     const createdAssignments = await Promise.all(assignmentsToCreate.map((assignment) => insertCloudAssignment(assignment)));
     assignments.unshift(...createdAssignments);
