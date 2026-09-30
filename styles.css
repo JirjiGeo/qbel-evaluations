@@ -89,7 +89,25 @@
 .profile-open-portal-button:hover{background:var(--brand);color:#fff}
 @media(max-width:760px){.employee-hero-banner{flex-direction:column;align-items:stretch;text-align:left;padding:26px}.employee-hero-badge{justify-self:start}}
 
-.employee-stats-grid .stat-icon.coral{background:#fde6e1;color:var(--coral-dark)}
-.employee-stats-grid .stat-icon.blue{background:#e8edfb;color:var(--blue)}
-.employee-stats-grid .stat-icon.mint{background:#e2f5ee;color:#2f8a72}
-.employee-stats-grid .stat-icon.yellow{background:#fdf1d8;color:#a9781f}
+.workforce-pulse{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:18px;align-items:stretch}
+.pulse-card{display:flex;flex-direction:column;gap:16px;padding:22px;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 10px 24px rgba(1,50,32,.04);animation:riseIn .5s ease both}
+.pulse-card-heading h3{margin:6px 0 0;font:600 17px 'Space Grotesk',sans-serif;color:var(--ink)}
+.pulse-donut-wrap,.pulse-ring-wrap{display:flex;align-items:center;gap:18px;flex:1}
+.pulse-donut,.pulse-ring{position:relative;width:110px;height:110px;border-radius:50%;flex:none}
+.pulse-donut-center,.pulse-ring-center{position:absolute;inset:16px;display:grid;place-items:center;justify-items:center;background:#fff;border-radius:50%;text-align:center}
+.pulse-donut-center strong{font:700 24px 'Space Grotesk',sans-serif;color:var(--ink)}
+.pulse-donut-center small{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.3px}
+.pulse-ring-center strong{font:700 20px 'Space Grotesk',sans-serif;color:var(--brand)}
+.pulse-legend{display:grid;gap:7px;min-width:0;flex:1}
+.pulse-legend-item{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pulse-legend-dot{width:9px;height:9px;border-radius:3px;flex:none}
+.pulse-legend-item b{margin-left:auto;flex:none;color:var(--muted);font-weight:700}
+.pulse-ring-copy{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.pulse-newfaces-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.pulse-newface-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#f7faf8;border:1px solid #e7efe9;min-width:0}
+.pulse-newface-row .avatar{width:36px;height:36px;font-size:11px;flex:none}
+.pulse-newface-row div{display:grid;gap:2px;min-width:0}
+.pulse-newface-row strong{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pulse-newface-row small{color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pulse-empty{grid-column:1/-1;padding:16px;text-align:center;color:var(--muted);font-size:11px;background:#f7faf8;border:1px dashed #d6e2dc;border-radius:12px}
+@media(max-width:980px){.workforce-pulse{grid-template-columns:1fr}.pulse-card-wide{grid-column:auto}}

@@ -560,25 +560,69 @@ function renderEmployeeDepartmentFilterOptions() {
   employeeDepartmentFilter.value = departments.includes(current) || current === 'all' ? current : 'all';
 }
 
+const workforcePalette = ['var(--coral)', 'var(--blue)', 'var(--mint)', 'var(--purple)', 'var(--yellow)', 'var(--green)', 'var(--orange)'];
+
 function renderEmployeeStats(activeEmployees) {
-  const countStat = document.querySelector('#employeeCountStat');
-  const departmentsStat = document.querySelector('#employeeDepartmentsStat');
-  const newHiresStat = document.querySelector('#employeeNewHiresStat');
-  const completeStat = document.querySelector('#employeeCompleteStat');
-  if (!countStat) return;
-  const now = new Date();
-  const newHires = activeEmployees.filter((employee) => {
-    if (!employee.joiningDate) return false;
-    const joined = new Date(employee.joiningDate);
-    return !Number.isNaN(joined.getTime()) && joined.getFullYear() === now.getFullYear() && joined.getMonth() === now.getMonth();
-  });
-  countStat.textContent = activeEmployees.length;
-  departmentsStat.textContent = new Set(activeEmployees.map((employee) => employee.department).filter(Boolean)).size;
-  newHiresStat.textContent = newHires.length;
-  completeStat.textContent = activeEmployees.filter((employee) => employee.reportingTo).length;
   const heroCount = document.querySelector('#employeeHeroCount');
   if (heroCount) heroCount.textContent = activeEmployees.length;
+  renderDepartmentMixPulse(activeEmployees);
+  renderManagerCoveragePulse(activeEmployees);
+  renderNewFacesPulse(activeEmployees);
 }
+
+function renderDepartmentMixPulse(activeEmployees) {
+  const donut = document.querySelector('#departmentMixDonut');
+  const centerCount = document.querySelector('#departmentMixCenterCount');
+  const legend = document.querySelector('#departmentMixLegend');
+  if (!donut) return;
+  const counts = new Map();
+  activeEmployees.forEach((employee) => {
+    const department = employee.department || 'Unassigned';
+    counts.set(department, (counts.get(department) || 0) + 1);
+  });
+  const entries = [...counts.entries()].sort((first, second) => second[1] - first[1]);
+  centerCount.textContent = entries.length;
+  if (!entries.length || !activeEmployees.length) {
+    donut.style.background = '#edf2ee';
+    legend.innerHTML = '<div class="pulse-empty">No employees yet to chart.</div>';
+    return;
+  }
+  let cursor = 0;
+  const stops = entries.map(([department, count], index) => {
+    const color = workforcePalette[index % workforcePalette.length];
+    const share = (count / activeEmployees.length) * 100;
+    const stop = `${color} ${cursor}% ${cursor + share}%`;
+    cursor += share;
+    return stop;
+  });
+  donut.style.background = `conic-gradient(${stops.join(',')})`;
+  legend.innerHTML = entries.map(([department, count], index) => `<div class="pulse-legend-item"><span class="pulse-legend-dot" style="background:${workforcePalette[index % workforcePalette.length]}"></span>${escapeHtml(department)}<b>${count}</b></div>`).join('');
+}
+
+function renderManagerCoveragePulse(activeEmployees) {
+  const ring = document.querySelector('#managerCoverageRing');
+  const percentLabel = document.querySelector('#managerCoveragePercent');
+  const copy = document.querySelector('#managerCoverageCopy');
+  if (!ring) return;
+  const withManager = activeEmployees.filter((employee) => employee.reportingTo).length;
+  const percent = activeEmployees.length ? Math.round((withManager / activeEmployees.length) * 100) : 0;
+  ring.style.background = `conic-gradient(var(--brand) 0% ${percent}%, #edf2ee ${percent}% 100%)`;
+  percentLabel.textContent = `${percent}%`;
+  copy.textContent = `${withManager} of ${activeEmployees.length} people have a reporting line on file.`;
+}
+
+function renderNewFacesPulse(activeEmployees) {
+  const list = document.querySelector('#newFacesList');
+  if (!list) return;
+  const joiners = activeEmployees
+    .filter((employee) => employee.joiningDate && !Number.isNaN(new Date(employee.joiningDate).getTime()))
+    .sort((first, second) => new Date(second.joiningDate) - new Date(first.joiningDate))
+    .slice(0, 3);
+  list.innerHTML = joiners.length
+    ? joiners.map((employee) => `<div class="pulse-newface-row">${avatarMarkup(employee)}<div><strong>${escapeHtml(employee.name)}</strong><small>${escapeHtml(employee.department || 'Unassigned')} · Joined ${escapeHtml(employee.joiningDate)}</small></div></div>`).join('')
+    : '<div class="pulse-empty">No joining dates recorded yet.</div>';
+}
+
 
 function renderEmployeeRows() {
   const query = employeeSearchInput.value.toLowerCase().trim();
