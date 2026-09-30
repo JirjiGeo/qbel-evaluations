@@ -88,3 +88,8 @@
 .profile-open-portal-button{min-height:32px;padding:0 12px;border:1px solid var(--brand);border-radius:8px;background:#fff;color:var(--brand);font-size:11px;font-weight:700}
 .profile-open-portal-button:hover{background:var(--brand);color:#fff}
 @media(max-width:760px){.employee-hero-banner{flex-direction:column;align-items:stretch;text-align:left;padding:26px}.employee-hero-badge{justify-self:start}}
+
+.employee-stats-grid .stat-icon.coral{background:#fde6e1;color:var(--coral-dark)}
+.employee-stats-grid .stat-icon.blue{background:#e8edfb;color:var(--blue)}
+.employee-stats-grid .stat-icon.mint{background:#e2f5ee;color:#2f8a72}
+.employee-stats-grid .stat-icon.yellow{background:#fdf1d8;color:#a9781f}
