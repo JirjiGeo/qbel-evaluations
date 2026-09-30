@@ -111,3 +111,16 @@
 .pulse-newface-row small{color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pulse-empty{grid-column:1/-1;padding:16px;text-align:center;color:var(--muted);font-size:11px;background:#f7faf8;border:1px dashed #d6e2dc;border-radius:12px}
 @media(max-width:980px){.workforce-pulse{grid-template-columns:1fr}.pulse-card-wide{grid-column:auto}}
+
+.performance-signals{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 22px}
+.signal-panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}
+.signal-heading{margin-bottom:12px}
+.signal-heading h3{margin:5px 0 0;font:600 15px "Space Grotesk",sans-serif;color:var(--ink)}
+.signal-attention .signal-heading .section-kicker{color:#c45b55}
+.signal-stable .signal-heading .section-kicker{color:#7f8493}
+.signal-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #f0f3f1}
+.signal-row:last-child{border-bottom:0}
+.signal-row .quarter-change{text-align:right;white-space:nowrap}
+.signal-row .quarter-change small{display:block;color:var(--muted);font-size:10px;font-weight:600}
+.signal-empty{padding:16px;text-align:center;color:var(--muted);font-size:12px;background:#f7faf8;border:1px dashed #d6e2dc;border-radius:10px}
+@media(max-width:760px){.performance-signals{grid-template-columns:1fr}}

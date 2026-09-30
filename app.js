@@ -261,6 +261,7 @@ const toast = document.querySelector('#toast');
 const progressCurrentQuarter = document.querySelector('#progressCurrentQuarter');
 const progressPreviousQuarter = document.querySelector('#progressPreviousQuarter');
 const quarterSummary = document.querySelector('#quarterSummary');
+const performanceSignals = document.querySelector('#performanceSignals');
 const quarterProgressRows = document.querySelector('#quarterProgressRows');
 const departmentMovementChart = document.querySelector('#departmentMovementChart');
 const previousMovementLabel = document.querySelector('#previousMovementLabel');
@@ -387,6 +388,7 @@ function renderQuarterlyProgress() {
     progressCurrentQuarter.innerHTML = '<option>No quarters yet</option>';
     progressPreviousQuarter.innerHTML = '<option>No quarters yet</option>';
     quarterSummary.innerHTML = '<div class="quarter-empty">Quarterly progress will appear after evaluations are recorded.</div>';
+    if (performanceSignals) performanceSignals.innerHTML = '';
     quarterProgressRows.innerHTML = '<tr><td colspan="6" class="empty-state">No evaluation history yet.</td></tr>';
     if (departmentMovementChart) departmentMovementChart.innerHTML = '<div class="quarter-empty">Department movement will appear after two quarters are available.</div>';
     return;
@@ -417,8 +419,21 @@ function renderQuarterlyProgress() {
   const previousAverage = previousScores.length ? previousScores.reduce((sum, score) => sum + score, 0) / previousScores.length : 0;
   const changes = rows.filter((row) => row.change !== null);
   const improvedCount = changes.filter((row) => row.change > 0).length;
+  const stableRows = changes.filter((row) => row.change === 0);
+  const attentionRows = changes.filter((row) => row.change < 0).sort((first, second) => first.change - second.change);
   const averageChange = currentScores.length && previousScores.length ? currentAverage - previousAverage : null;
   quarterSummary.innerHTML = `<div><span>${escapeHtml(currentQuarter.label)} average</span><strong>${currentAverage.toFixed(1)}<small>/100</small></strong><small>${currentScores.length} evaluated</small></div><div><span>Average change</span><strong class="${averageChange === null ? 'neutral' : averageChange >= 0 ? 'positive' : 'negative'}">${averageChange === null ? '—' : `${averageChange >= 0 ? '+' : ''}${averageChange.toFixed(1)}`}<small>${averageChange === null ? 'Need two quarters' : 'points'}</small></strong><small>${improvedCount} staff improved</small></div><div><span>Comparison coverage</span><strong>${rows.filter((row) => row.currentScore !== null && row.previousScore !== null).length}<small>/${activeEmployees.length}</small></strong><small>${escapeHtml(previousQuarter?.label || 'Previous quarter')} comparison</small></div>`;
+  if (performanceSignals) {
+    performanceSignals.innerHTML = `
+      <div class="signal-panel signal-attention">
+        <div class="signal-heading"><span class="section-kicker">Needs attention</span><h3>Declined vs ${escapeHtml(previousQuarter?.label || 'previous quarter')}</h3></div>
+        ${attentionRows.length ? attentionRows.map(({ employee, currentScore, change }) => `<div class="signal-row"><div class="employee-cell">${avatarMarkup(employee)}<div>${escapeHtml(employee.name)}<small>${escapeHtml(employee.department)}</small></div></div><strong class="quarter-change negative">${change.toFixed(1)}<small>now ${currentScore}/100</small></strong></div>`).join('') : '<div class="signal-empty">No one declined this quarter. Nice work.</div>'}
+      </div>
+      <div class="signal-panel signal-stable">
+        <div class="signal-heading"><span class="section-kicker">Holding steady</span><h3>Stable vs ${escapeHtml(previousQuarter?.label || 'previous quarter')}</h3></div>
+        ${stableRows.length ? stableRows.map(({ employee, currentScore }) => `<div class="signal-row"><div class="employee-cell">${avatarMarkup(employee)}<div>${escapeHtml(employee.name)}<small>${escapeHtml(employee.department)}</small></div></div><strong class="quarter-change neutral">0.0<small>now ${currentScore}/100</small></strong></div>`).join('') : '<div class="signal-empty">No unchanged scores this quarter.</div>'}
+      </div>`;
+  }
   document.querySelector('#currentQuarterHeading').textContent = currentQuarter.label;
   document.querySelector('#previousQuarterHeading').textContent = previousQuarter?.label || 'Previous';
   quarterProgressRows.innerHTML = rows.map(({ employee, currentScore, previousScore, change }) => {
