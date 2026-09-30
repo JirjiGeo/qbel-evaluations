@@ -1180,7 +1180,7 @@ function updateEvaluationMetadata(employee) {
 }
 
 function updateEmployeeOptions() {
-  employeeSelect.innerHTML = employees.filter((employee) => !employee.deleted).map((employee) => `<option value="${employee.id}">${employee.name} · ${employee.role || employee.department}</option>`).join('');
+  employeeSelect.innerHTML = employees.filter((employee) => !employee.deleted).sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), undefined, { sensitivity: 'base', numeric: true })).map((employee) => `<option value="${employee.id}">${employee.name} · ${employee.role || employee.department}</option>`).join('');
 }
 
 function updateDesignationOptions() {

@@ -476,3 +476,35 @@ where assignment.status = 'Completed'
   and resource.category in ('Courses', 'Trainings')
 on conflict (training_assignment_id) do nothing;
 
+
+create table if not exists public.employee_assets (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references public.employees(id) on delete cascade,
+  asset_type text not null,
+  description text,
+  serial_asset_no text,
+  date_issued date,
+  date_returned date,
+  handover_form_name text,
+  handover_form_data text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists employee_assets_employee_id_idx on public.employee_assets(employee_id);
+
+alter table public.employee_assets enable row level security;
+
+drop policy if exists "Authenticated users can read employee assets" on public.employee_assets;
+drop policy if exists "Authenticated users can insert employee assets" on public.employee_assets;
+drop policy if exists "Authenticated users can update employee assets" on public.employee_assets;
+drop policy if exists "Authenticated users can delete employee assets" on public.employee_assets;
+
+create policy "Authenticated users can read employee assets"
+  on public.employee_assets for select to authenticated using (true);
+create policy "Authenticated users can insert employee assets"
+  on public.employee_assets for insert to authenticated with check (true);
+create policy "Authenticated users can update employee assets"
+  on public.employee_assets for update to authenticated using (true) with check (true);
+create policy "Authenticated users can delete employee assets"
+  on public.employee_assets for delete to authenticated using (true);
