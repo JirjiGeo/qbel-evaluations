@@ -65,7 +65,10 @@
     <header class="operations-header">
       <button class="back-module-button" type="button" data-module="home">&#8592; Modules</button>
       <div class="operations-brand"><img src="logo.png" alt="QBEL FM &amp; Technical Services" /><span>Development Centre</span></div>
-      <span class="operations-date">Learning workspace</span>
+      <div class="operations-header-actions">
+        <span class="operations-date">Learning workspace</span>
+        <button class="sign-out-button operations-sign-out" type="button" data-action="sign-out">Sign out</button>
+      </div>
     </header>
     <iframe class="development-frame" src="development-centre/index.html" title="Development Centre module"></iframe>
   </div>
@@ -87,9 +90,19 @@
         <div><p class="eyebrow" id="employeesTodayDate"></p></div>
         <div class="top-actions"><button class="primary-button" id="employeesAddButton" type="button">Add employee</button></div>
       </header>
+      <section class="hero-panel employee-hero">
+        <div class="hero-copy"><span class="section-kicker">People directory</span><h2>Your people,<br /><em>at a glance.</em></h2><p>Keep the employee directory current so learning, development and evaluations always line up.</p></div>
+        <div class="hero-orbit"><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><div class="orbit-core">People<br /><small>directory</small></div><span class="orbit-star star-one">*</span><span class="orbit-star star-two">*</span><span class="orbit-star star-three">*</span></div>
+      </section>
+      <section class="stats-grid">
+        <div class="stat-card"><div class="stat-icon coral">◎</div><div><span>Total employees</span><strong id="employeeCountStat">0</strong><small class="trend neutral">Current directory</small></div></div>
+        <div class="stat-card"><div class="stat-icon mint">▤</div><div><span>Departments</span><strong id="employeeDepartmentsStat">0</strong><small class="trend neutral">Represented teams</small></div></div>
+        <div class="stat-card"><div class="stat-icon blue">◷</div><div><span>New this month</span><strong id="employeeNewHiresStat">0</strong><small class="trend neutral">Recently joined</small></div></div>
+        <div class="stat-card"><div class="stat-icon yellow">✓</div><div><span>Profiles complete</span><strong id="employeeCompleteStat">0</strong><small class="trend neutral">With manager assigned</small></div></div>
+      </section>
       <section class="workspace-section" id="employees">
-        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
+        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><select id="employeeDepartmentFilter" aria-label="Filter by department"><option value="all">All departments</option></select><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
+        <div class="employee-grid" id="employeeRows"></div>
       </section>
     </main>
   </div>

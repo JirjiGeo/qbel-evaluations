@@ -235,6 +235,7 @@ const cloudEmployeeIds = new Set();
 const rows = document.querySelector('#evaluationRows');
 const employeeRows = document.querySelector('#employeeRows');
 const employeeSearchInput = document.querySelector('#employeeSearchInput');
+const employeeDepartmentFilter = document.querySelector('#employeeDepartmentFilter');
 const importEmployeesButton = document.querySelector('#importEmployeesButton');
 const employeeCsvInput = document.querySelector('#employeeCsvInput');
 const employeeModal = document.querySelector('#employeeModal');
@@ -537,20 +538,54 @@ function updateDashboardMetrics() {
   renderQuarterlyProgress();
 }
 
+function renderEmployeeDepartmentFilterOptions() {
+  if (!employeeDepartmentFilter) return;
+  const current = employeeDepartmentFilter.value || 'all';
+  const departments = [...new Set(employees.filter((employee) => !employee.deleted).map((employee) => employee.department).filter(Boolean))].sort();
+  employeeDepartmentFilter.innerHTML = ['<option value="all">All departments</option>', ...departments.map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)].join('');
+  employeeDepartmentFilter.value = departments.includes(current) || current === 'all' ? current : 'all';
+}
+
+function renderEmployeeStats(activeEmployees) {
+  const countStat = document.querySelector('#employeeCountStat');
+  const departmentsStat = document.querySelector('#employeeDepartmentsStat');
+  const newHiresStat = document.querySelector('#employeeNewHiresStat');
+  const completeStat = document.querySelector('#employeeCompleteStat');
+  if (!countStat) return;
+  const now = new Date();
+  const newHires = activeEmployees.filter((employee) => {
+    if (!employee.joiningDate) return false;
+    const joined = new Date(employee.joiningDate);
+    return !Number.isNaN(joined.getTime()) && joined.getFullYear() === now.getFullYear() && joined.getMonth() === now.getMonth();
+  });
+  countStat.textContent = activeEmployees.length;
+  departmentsStat.textContent = new Set(activeEmployees.map((employee) => employee.department).filter(Boolean)).size;
+  newHiresStat.textContent = newHires.length;
+  completeStat.textContent = activeEmployees.filter((employee) => employee.reportingTo).length;
+}
+
 function renderEmployeeRows() {
   const query = employeeSearchInput.value.toLowerCase().trim();
-  const filtered = employees.filter((employee) => !employee.deleted).filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
-  const employeeHeader = document.querySelector('#employees thead tr');
-  if (employeeHeader && !employeeHeader.querySelector('.employee-actions-header')) employeeHeader.insertAdjacentHTML('beforeend', '<th class="employee-actions-header">Actions</th>');
+  const selectedDepartment = employeeDepartmentFilter?.value || 'all';
+  const activeEmployees = employees.filter((employee) => !employee.deleted);
+  renderEmployeeDepartmentFilterOptions();
+  renderEmployeeStats(activeEmployees);
+  const filtered = activeEmployees
+    .filter((employee) => selectedDepartment === 'all' || employee.department === selectedDepartment)
+    .filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
   employeeRows.innerHTML = filtered.map((employee) => `
-    <tr>
-      <td><div class="employee-cell">${avatarMarkup(employee)}<div>${employee.name}<small>${employee.id === 'maya' ? 'Employee record' : 'Added manually'}</small></div></div></td>
-      <td>${employee.department}</td>
-      <td>${employee.role || employee.designation || 'Not assigned'}</td>
-      <td>${employee.joiningDate || 'Not provided'}</td>
-      <td>${employee.reportingTo || 'Not provided'}</td>
-      <td><div class="employee-row-actions"><button type="button" data-employee-action="edit" data-employee-id="${employee.id}">Edit</button><button type="button" data-employee-action="scores" data-employee-id="${employee.id}">Open profile</button><button type="button" data-employee-action="delete" data-employee-id="${employee.id}">Delete</button></div></td>
-    </tr>`).join('') || '<tr><td colspan="6" class="empty-state">No employees match this search.</td></tr>';
+    <article class="employee-card">
+      <div class="employee-card-top">
+        ${avatarMarkup(employee)}
+        <div class="employee-card-identity"><strong>${escapeHtml(employee.name)}</strong><small>${escapeHtml(employee.role || employee.designation || 'Not assigned')}</small></div>
+        <span class="employee-card-department">${escapeHtml(employee.department || 'Unassigned')}</span>
+      </div>
+      <div class="employee-card-meta">
+        <div><span>Joining date</span><strong>${escapeHtml(employee.joiningDate || 'Not provided')}</strong></div>
+        <div><span>Reporting to</span><strong>${escapeHtml(employee.reportingTo || 'Not provided')}</strong></div>
+      </div>
+      <div class="employee-card-actions"><button type="button" data-employee-action="scores" data-employee-id="${employee.id}">Open profile</button><button type="button" data-employee-action="edit" data-employee-id="${employee.id}">Edit</button><button type="button" class="employee-card-delete" data-employee-action="delete" data-employee-id="${employee.id}">Delete</button></div>
+    </article>`).join('') || '<div class="empty-state employee-grid-empty">No employees match this search.</div>';
 }
 
 function employeeById(id) {
@@ -1202,6 +1237,7 @@ document.querySelector('#closeEmployeeModal').addEventListener('click', closeEmp
 document.querySelector('#cancelEmployeeModal').addEventListener('click', closeEmployeeModal);
 employeeModal.addEventListener('click', (event) => { if (event.target === employeeModal) closeEmployeeModal(); });
 employeeSearchInput.addEventListener('input', renderEmployeeRows);
+employeeDepartmentFilter?.addEventListener('change', renderEmployeeRows);
 document.querySelector('#employeeDepartmentInput').addEventListener('change', updateDesignationOptions);
 employeeModal.addEventListener('change', async (event) => {
   if (event.target.id !== 'employeeDocumentsInput') return;

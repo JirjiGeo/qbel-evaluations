@@ -333,6 +333,15 @@ $('#profileEmployeeSelect').addEventListener('change', renderLearningProfile);
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 $('#libraryDepartment').addEventListener('change', renderResources);
 $('#trackerQuarter').addEventListener('change', (event) => { selectedQuarter = event.target.value; renderTracker(); });
+$('#devCentreSignOutButton')?.addEventListener('click', async () => {
+  const parentAuth = window.parent?.Auth;
+  if (parentAuth) {
+    await parentAuth.logout();
+    window.parent.location.reload();
+  } else {
+    window.location.href = '../index.html';
+  }
+});
 $('#trainingSearch').addEventListener('input', renderTracker);
 $('#trainingStatusFilter').addEventListener('change', renderTracker);
 $('#trainingDepartmentFilter').addEventListener('change', renderTracker);
