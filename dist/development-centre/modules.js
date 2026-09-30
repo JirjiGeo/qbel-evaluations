@@ -198,20 +198,11 @@ function renderEmployeeModuleWidgets() {
   module$('#learningSkills').innerHTML = skills.length ? skills.map((skill) => {
     const levels = skill.rating ? `Current ${skill.rating.current_level}/5 · Target ${skill.rating.target_level}/5 · Gap ${Math.max(0, skill.rating.target_level - skill.rating.current_level)}` : 'Selected for development';
     const courses = skill.courses.map((course) => `${course.title} (${course.status})`).join(', ');
-    return `<article class="learning-item"><strong>${moduleEscape(skill.name)}</strong><small>${levels}${courses ? ` · ${moduleEscape(courses)}` : ''}</small></article>`;
-  }).join('') : '<p class="learning-empty">No skills selected yet. Add skills when assigning a training course.</p>';
+    const gap = skill.rating ? Math.max(0, skill.rating.target_level - skill.rating.current_level) : 0;
+    return `<article class="learning-item skill-item"><div><strong>${moduleEscape(skill.name)}</strong><small>${levels}${courses ? ` · ${moduleEscape(courses)}` : ''}</small></div>${skill.rating ? `<span class="skill-meter" style="--skill-level:${skill.rating.current_level * 20}%;--skill-target:${skill.rating.target_level * 20}%"><i></i></span>` : ''}</article>`;
+  }).join('') : '<p class="learning-empty">No skills selected yet. Skills appear here when a course is assigned to build them.</p>';
   const certificates = moduleRows.certificates.filter((row) => row.employee_id === employeeId);
-  module$('#learningCertificates').innerHTML = certificates.length ? certificates.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.certificate_name)}</strong><small>${moduleEscape(row.issuer || 'Issuer not recorded')} · Expires ${moduleDate(row.expires_on)}</small>${row.training_assignment_id ? `<button class="row-action" type="button" data-print-certificate="${moduleEscape(row.id)}">Print / Save PDF</button>` : ''}</article>`).join('') : '<p class="learning-empty">No certificates recorded.</p>';
-  const assignmentsById = new Map(moduleAssignments.map((item) => [item.id, item]));
-  const tests = moduleAssignments.filter((item) => item.employee_id === employeeId && moduleResources.some((resource) => resource.id === item.resource_id && resource.category === 'Tests'));
-  module$('#employeeAssessments').innerHTML = tests.length ? tests.map((assignment) => {
-    const resource = moduleResources.find((item) => item.id === assignment.resource_id);
-    const attempts = moduleRows.assessments.filter((item) => item.assignment_id === assignment.id).sort((a, b) => b.attempted_on.localeCompare(a.attempted_on));
-    const result = attempts[0];
-    return `<article class="learning-item"><strong>${moduleEscape(resource?.title || 'Assigned test')}</strong><small>${result ? `${result.score}% · ${result.passed ? 'Passed' : 'Not passed'} · ${attempts.length} attempt(s)` : `No result yet · ${moduleEscape(assignment.status)}`}</small></article>`;
-  }).join('') : '<p class="learning-empty">No tests assigned.</p>';
-  const impacts = moduleRows.impact.filter((row) => assignmentsById.get(row.assignment_id)?.employee_id === employeeId);
-  module$('#learningImpact').innerHTML = impacts.length ? impacts.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.measure)}</strong><small>${moduleEscape(moduleAssignmentLabel(row.assignment_id))} · ${row.before_value} → ${row.after_value} · ${moduleDate(row.measured_on)}</small></article>`).join('') : '<p class="learning-empty">No before-and-after measures recorded.</p>';
+  module$('#learningCertificates').innerHTML = certificates.length ? certificates.map((row) => `<article class="learning-item certificate-item"><strong>${moduleEscape(row.certificate_name)}</strong><small>${moduleEscape(row.issuer || 'Issuer not recorded')} · Valid through ${moduleDate(row.expires_on)}</small>${row.training_assignment_id ? `<button class="row-action" type="button" data-print-certificate="${moduleEscape(row.id)}">Print / Save PDF</button>` : ''}</article>`).join('') : '<p class="learning-empty">Pass a completed course to unlock its one-year certificate here.</p>';
 }
 
 function renderModuleDashboard() {
@@ -424,6 +415,7 @@ document.addEventListener('click', (event) => {
 module$('#learningEmployeeSelect').addEventListener('change', renderEmployeeModuleWidgets);
 window.renderDevelopmentModules = renderDevelopmentModules;
 window.getEmployeeCertificateCount = (employeeId) => moduleRows.certificates.filter((certificate) => certificate.employee_id === employeeId).length;
+window.hasEmployeeCertificate = (employeeId, assignmentId) => moduleRows.certificates.some((certificate) => certificate.employee_id === employeeId && certificate.training_assignment_id === assignmentId);
 window.addEventListener('development-modules-refresh', () => {
   if (!moduleSessionUserId) return;
   moduleLoadedUserId = null;

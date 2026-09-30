@@ -83,25 +83,35 @@ function renderEmployeeLearning() {
   const employee = activeEmployees.find((item) => item.id === employeeSelect.value) || activeEmployees[0];
   const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
   const employeeAssignments = assignments.filter((assignment) => assignment.employeeId === employee.id);
-  const completed = employeeAssignments.filter((assignment) => assignment.status === 'Completed').length;
-  const progress = employeeAssignments.length ? Math.round((completed / employeeAssignments.length) * 100) : 0;
   const tests = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category === 'Tests');
-  const completedCourses = employeeAssignments.filter((assignment) => assignment.status === 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length;
+  const courseAssignments = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests');
+  const completedCourses = courseAssignments.filter((assignment) => assignment.status === 'Completed').length;
+  const today = new Date().toISOString().slice(0, 10);
+  const validCourses = courseAssignments.filter((assignment) => assignment.status === 'Completed' && (!assignment.trainingValidUntil || assignment.trainingValidUntil >= today)).length;
+  const expiredCourses = courseAssignments.filter((assignment) => assignment.status === 'Completed' && assignment.trainingValidUntil && assignment.trainingValidUntil < today).length;
+  const failedCourses = courseAssignments.filter((assignment) => assignment.resultStatus === 'Failed').length;
+  const passedCourses = courseAssignments.filter((assignment) => assignment.resultStatus === 'Passed').length;
   $('#learningWelcome').textContent = `Welcome back, ${employee.name}`;
   $('#learningRole').textContent = employee.role || employee.designation || employee.department || 'Employee';
-  $('#learningProgress').textContent = `${progress}%`;
-  $('#learningProgressBar').style.width = `${progress}%`;
+  const validityScale = Math.max(validCourses, expiredCourses, 1);
+  $('#validCourseCount').textContent = validCourses;
+  $('#expiredCourseCount').textContent = expiredCourses;
+  $('#validCourseBar').style.height = `${Math.max((validCourses / validityScale) * 100, validCourses ? 8 : 0)}%`;
+  $('#expiredCourseBar').style.height = `${Math.max((expiredCourses / validityScale) * 100, expiredCourses ? 8 : 0)}%`;
   const certificatesEarned = window.getEmployeeCertificateCount?.(employee.id) || 0;
-  $('#learningKpis').innerHTML = [['Active courses', employeeAssignments.filter((assignment) => assignment.status !== 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length], ['Completed courses', completedCourses], ['Pending exams', tests.filter((assignment) => assignment.status !== 'Completed').length], ['Certificates earned', certificatesEarned]].map(([label, value]) => `<article class="learning-kpi"><span>${label}</span><strong>${value}</strong></article>`).join('');
-  const roadmapItems = [...employeeAssignments].sort((first, second) => (first.assignedDate || '').localeCompare(second.assignedDate || ''));
+  const learningMetrics = [['active', '↗', 'Active courses', courseAssignments.filter((assignment) => assignment.status !== 'Completed').length, '#168273'], ['completed', '✓', 'Completed courses', completedCourses, '#3c8655'], ['failed', '!', 'Failed courses', failedCourses, '#bf7150'], ['passed', '◇', 'Passed courses', passedCourses, '#ad8535']];
+  $('#learningKpis').innerHTML = learningMetrics.map(([kind, marker, label, value, color]) => `<article class="learning-kpi" data-kpi="${kind}" style="--metric-color:${color}"><div class="learning-kpi-top"><span>${label}</span><span class="learning-kpi-mark" aria-hidden="true">${marker}</span></div><strong>${value}</strong></article>`).join('');
+  const roadmapItems = [...employeeAssignments].sort((first, second) => {
+    const firstRank = first.status === 'Completed' ? 1 : 0;
+    const secondRank = second.status === 'Completed' ? 1 : 0;
+    return firstRank - secondRank || `${first.dueDate || '9999-12-31'}`.localeCompare(`${second.dueDate || '9999-12-31'}`);
+  });
   $('#learningRoadmap').innerHTML = roadmapItems.length ? roadmapItems.map((assignment, index) => {
     const resource = resourceMap.get(assignment.resourceId);
-    const state = assignment.status === 'Completed' ? 'complete' : index === 0 ? 'current' : 'next';
-    const skills = assignment.skillsToDevelop || assignment.skills_to_develop || [];
-    const skillNote = skills.length ? `<small class="roadmap-skills">Builds: ${skills.map(escapeHtml).join(', ')}</small>` : '';
-    return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : index + 1}</span><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Learning activity')} · ${escapeHtml(assignment.status)}</small>${skillNote}</div></div>`;
+    const state = assignment.status === 'Completed' ? 'complete' : assignment.resultStatus === 'Failed' ? 'attention' : index === 0 ? 'current' : 'next';
+    const certificate = window.hasEmployeeCertificate?.(employee.id, assignment.id) ? '<span class="roadmap-certificate">Certificate earned</span>' : '';
+    return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : state === 'attention' ? '!' : '&#8594;'}</span><div class="roadmap-step-content"><div class="roadmap-step-heading"><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong></div>${certificate}</div></div>`;
   }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
-  const courseAssignments = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests');
   const upcomingCourses = courseAssignments.filter((assignment) => assignment.status !== 'Completed').sort((first, second) => `${first.scheduledDate || first.dueDate || '9999-12-31'}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate || second.dueDate || '9999-12-31'}T${second.scheduledTime || '23:59'}`));
   const nextCourse = upcomingCourses[0];
   $('#nextCourseEmpty').hidden = Boolean(nextCourse);
@@ -117,10 +127,9 @@ function renderEmployeeLearning() {
     const skills = nextCourse.skillsToDevelop || nextCourse.skills_to_develop || [];
     $('#nextCourseSkills').textContent = skills.length ? `Skills: ${skills.join(', ')}` : `${resource?.category || 'Course'} · ${nextCourse.status}`;
   }
-  const courseFilter = document.querySelector('[data-course-filter].active')?.dataset.courseFilter || 'upcoming';
-  const filteredCourses = courseAssignments.filter((assignment) => courseFilter === 'all' || (courseFilter === 'completed' ? assignment.status === 'Completed' : assignment.status !== 'Completed')).sort((first, second) => `${first.scheduledDate || first.dueDate || '9999-12-31'}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate || second.dueDate || '9999-12-31'}T${second.scheduledTime || '23:59'}`));
-  $('#employeeCourseCount').textContent = `${filteredCourses.length} of ${courseAssignments.length}`;
-  $('#assignedLearning').innerHTML = filteredCourses.length ? filteredCourses.map((assignment) => {
+  const completedCourseAssignments = courseAssignments.filter((assignment) => assignment.status === 'Completed').sort((first, second) => `${first.scheduledDate || first.dueDate || '9999-12-31'}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate || second.dueDate || '9999-12-31'}T${second.scheduledTime || '23:59'}`));
+  $('#employeeCourseCount').textContent = `${completedCourseAssignments.length} of ${courseAssignments.length}`;
+  $('#assignedLearning').innerHTML = completedCourseAssignments.length ? completedCourseAssignments.map((assignment) => {
     const resource = resourceMap.get(assignment.resourceId);
     const result = assignment.resultStatus || 'Pending';
     const skills = assignment.skillsToDevelop || assignment.skills_to_develop || [];
@@ -131,8 +140,7 @@ function renderEmployeeLearning() {
     const session = sessionDate ? `Scheduled ${sessionDate}${sessionTime ? ` · ${sessionTime}` : ' · Time to be confirmed'}` : 'Session to be scheduled';
     const dueDate = assignment.dueDate ? `<small>Due ${escapeHtml(assignment.dueDate)}</small>` : '';
     return `<article class="course-row"><div class="course-row-heading"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small class="course-session">${session}</small>${dueDate}</div><span class="course-status course-status-${assignment.status.toLowerCase().replace(/\s+/g, '-')}" >${escapeHtml(assignment.status)}</span></div><div class="course-row-details"><span>Result: ${escapeHtml(result)}</span>${validity}</div>${skillLine}</article>`;
-  }).join('') : `<div class="course-empty">${courseFilter === 'completed' ? 'No completed courses yet.' : courseFilter === 'upcoming' ? 'No upcoming courses currently assigned.' : 'No courses assigned yet.'}</div>`;
-  $('#employeeAssessments').innerHTML = tests.length ? tests.map((assignment) => { const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted test')}</strong><small>${escapeHtml(assignment.status)} · ${escapeHtml(assignment.resultStatus || 'Pending')}</small></div><time>${escapeHtml(assignment.dueDate || 'No deadline')}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No exams assigned.</strong></div>';
+  }).join('') : '<div class="course-empty">No completed courses yet.</div>';
 }
 function renderDashboard() {
   const activeEmployees = employees();
@@ -314,14 +322,6 @@ $('#openAssignmentForm').addEventListener('click', () => { renderAssignmentOptio
 $('#dashboardAssignButton').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#recommendedList').addEventListener('click', (event) => { const button = event.target.closest('[data-recommended-resource]'); if (!button) return; renderAssignmentOptions(); $('#assignmentResource').value = button.dataset.recommendedResource; openModal('assignmentModal'); });
 $('#learningEmployeeSelect').addEventListener('change', renderEmployeeLearning);
-document.querySelectorAll('[data-course-filter]').forEach((button) => button.addEventListener('click', () => {
-  document.querySelectorAll('[data-course-filter]').forEach((filter) => {
-    const active = filter === button;
-    filter.classList.toggle('active', active);
-    filter.setAttribute('aria-pressed', String(active));
-  });
-  renderEmployeeLearning();
-}));
 $('#profileEmployeeSelect').addEventListener('change', renderLearningProfile);
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 $('#libraryDepartment').addEventListener('change', renderResources);
