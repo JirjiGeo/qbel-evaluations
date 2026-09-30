@@ -281,27 +281,46 @@ function showModule(moduleName) {
   moduleHome?.classList.toggle('active', isHome);
   evaluationsShell?.classList.toggle('module-hidden', !isEvaluations);
   employeesShell?.classList.toggle('module-hidden', !isEmployees);
-  developmentShell?.classList.toggle('active', isDevelopment);
+  developmentShell?.classList.toggle('module-hidden', !isDevelopment);
   moduleHome?.setAttribute('aria-hidden', String(!isHome));
   evaluationsShell?.setAttribute('aria-hidden', String(!isEvaluations));
   employeesShell?.setAttribute('aria-hidden', String(!isEmployees));
   developmentShell?.setAttribute('aria-hidden', String(!isDevelopment));
   if (isEvaluations) switchTab('dashboard');
+  else syncSidebarNav(moduleName, null);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function openEmployeeLearningPortal(employee, attempt = 0) {
-  showModule('development');
+function syncSidebarNav(moduleName, tabName) {
+  document.querySelectorAll('.qbel-nav-link[data-module="employees"]').forEach((link) => link.classList.toggle('active', moduleName === 'employees'));
+  document.querySelectorAll('.qbel-nav-link[data-module="evaluations"][data-tab]').forEach((link) => link.classList.toggle('active', moduleName === 'evaluations' && link.dataset.tab === tabName));
+}
+
+function withDevelopmentFrame(callback, attempt = 0) {
   const frame = document.querySelector('#developmentFrame');
   const frameWindow = frame?.contentWindow;
-  const learningSelect = frameWindow?.document?.querySelector('#learningEmployeeSelect');
-  if (frameWindow && typeof frameWindow.switchView === 'function' && learningSelect) {
-    frameWindow.switchView('learning');
-    learningSelect.value = employee.id;
-    learningSelect.dispatchEvent(new Event('change'));
+  if (frameWindow && typeof frameWindow.switchView === 'function' && frameWindow.document?.querySelector('.section-tab')) {
+    callback(frameWindow);
     return;
   }
-  if (attempt < 40) window.setTimeout(() => openEmployeeLearningPortal(employee, attempt + 1), 150);
+  if (attempt < 40) window.setTimeout(() => withDevelopmentFrame(callback, attempt + 1), 150);
+}
+
+function openDevelopmentView(view) {
+  showModule('development');
+  withDevelopmentFrame((frameWindow) => frameWindow.switchView(view));
+}
+
+function openEmployeeLearningPortal(employee) {
+  showModule('development');
+  withDevelopmentFrame((frameWindow) => {
+    frameWindow.switchView('learning');
+    const learningSelect = frameWindow.document.querySelector('#learningEmployeeSelect');
+    if (learningSelect) {
+      learningSelect.value = employee.id;
+      learningSelect.dispatchEvent(new Event('change'));
+    }
+  });
 }
 
 function avatarMarkup(employee) {
@@ -1621,13 +1640,16 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
 });
 function switchTab(tabName) {
   document.querySelectorAll('[data-tab-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.tabPanel === tabName));
-  document.querySelectorAll('.primary-nav .nav-item').forEach((item) => item.classList.toggle('active', item.dataset.tab === tabName));
+  syncSidebarNav('evaluations', tabName);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-document.querySelectorAll('[data-module]').forEach((button) => button.addEventListener('click', () => showModule(button.dataset.module)));
-document.querySelectorAll('.primary-nav [data-tab]').forEach((link) => link.addEventListener('click', (event) => {
+document.querySelectorAll('[data-module]:not(.qbel-nav-link)').forEach((button) => button.addEventListener('click', () => showModule(button.dataset.module)));
+document.querySelectorAll('.qbel-nav-link').forEach((link) => link.addEventListener('click', (event) => {
   event.preventDefault();
-  switchTab(link.dataset.tab);
+  const developmentView = link.dataset.developmentView;
+  if (developmentView) { openDevelopmentView(developmentView); return; }
+  showModule(link.dataset.module);
+  if (link.dataset.module === 'evaluations' && link.dataset.tab) switchTab(link.dataset.tab);
 }));
 document.querySelector('#viewAllButton').addEventListener('click', () => {
   searchInput.value = '';

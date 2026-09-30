@@ -61,24 +61,47 @@
     </div>
   </section>
 
-  <div class="development-shell" id="developmentShell" aria-hidden="true">
-    <header class="operations-header">
-      <button class="back-module-button" type="button" data-module="home">&#8592; Modules</button>
-      <div class="operations-brand"><img src="logo.png" alt="QBEL FM &amp; Technical Services" /><span>Development Centre</span></div>
-      <div class="operations-header-actions">
-        <span class="operations-date">Learning workspace</span>
-        <button class="sign-out-button operations-sign-out" type="button" data-action="sign-out">Sign out</button>
+  <div class="app-shell module-hidden" id="developmentShell" aria-hidden="true">
+    <aside class="sidebar">
+      <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
+      <button class="module-switch-button" type="button" data-module="home">&#8592; All modules</button>
+      <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#employees" data-module="employees">Employees</a>
+        <span class="nav-group-title">Evaluations</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard">Evaluation dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations">Evaluation &amp; scoring</a>
+        <span class="nav-group-title">Learning Center</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard">Dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning">Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library">Resource library</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker">Training tracker</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules">Development records</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
+        <button class="sign-out-button" type="button" data-action="sign-out">Sign out</button>
       </div>
-    </header>
-    <iframe class="development-frame" id="developmentFrame" src="development-centre/index.html" title="Development Centre module"></iframe>
+    </aside>
+    <main class="main-content development-main" id="developmentOverview">
+      <iframe class="development-frame" id="developmentFrame" src="development-centre/index.html" title="Development Centre module"></iframe>
+    </main>
   </div>
 
   <div class="app-shell module-hidden" id="employeesShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
       <button class="module-switch-button" type="button" data-module="home">&#8592; All modules</button>
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="nav-item active" href="#employees">Employees</a>
+      <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link active" href="#employees" data-module="employees">Employees</a>
+        <span class="nav-group-title">Evaluations</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard">Evaluation dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations">Evaluation &amp; scoring</a>
+        <span class="nav-group-title">Learning Center</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard">Dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning">Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library">Resource library</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker">Training tracker</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules">Development records</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
@@ -125,9 +148,17 @@
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
       <button class="module-switch-button" type="button" data-module="home">&#8592; All modules</button>
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="nav-item active" href="#dashboard" data-tab="dashboard">Dashboard</a>
-        <a class="nav-item" href="#evaluations" data-tab="evaluations">Evaluations &amp; scoring</a>
+      <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#employees" data-module="employees">Employees</a>
+        <span class="nav-group-title">Evaluations</span>
+        <a class="nav-item nav-subitem qbel-nav-link active" href="#dashboard" data-module="evaluations" data-tab="dashboard">Evaluation dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations">Evaluation &amp; scoring</a>
+        <span class="nav-group-title">Learning Center</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard">Dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning">Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library">Resource library</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker">Training tracker</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules">Development records</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
