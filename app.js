@@ -516,13 +516,14 @@ function updateDashboardMetrics() {
   const pendingCount = Math.max(activeEmployees.length - completedEmployees.length, 0);
   const averageScore = completedEmployees.length ? completedEmployees.reduce((sum, employee) => sum + Number(latestEvaluation(employee)?.score ?? employee.score ?? 0), 0) / completedEmployees.length : 0;
   const departmentNames = [...new Set(activeEmployees.map((employee) => employee.department))];
-  const statValues = document.querySelectorAll('.stats-grid .stat-card strong');
-  if (statValues.length >= 4) {
-    statValues[0].textContent = activeEmployees.length;
-    statValues[1].innerHTML = `${averageScore.toFixed(1)}<small>/100</small>`;
-    statValues[2].textContent = pendingCount;
-    statValues[3].textContent = departmentNames.length;
-  }
+  const totalEmployeesStat = document.querySelector('#totalEmployeesStat');
+  const averageScoreStat = document.querySelector('#averageScoreStat');
+  const pendingReviewsStat = document.querySelector('#pendingReviewsStat');
+  const departmentsStat = document.querySelector('#departmentsStat');
+  if (totalEmployeesStat) totalEmployeesStat.textContent = activeEmployees.length;
+  if (averageScoreStat) averageScoreStat.textContent = averageScore.toFixed(1);
+  if (pendingReviewsStat) pendingReviewsStat.textContent = pendingCount;
+  if (departmentsStat) departmentsStat.textContent = departmentNames.length;
   const cycleNumber = document.querySelector('.cycle-number strong');
   const cycleTotal = document.querySelector('.cycle-number span');
   const progressBar = document.querySelector('.progress-track.large span');
