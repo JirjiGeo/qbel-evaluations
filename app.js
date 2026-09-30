@@ -562,6 +562,8 @@ function renderEmployeeStats(activeEmployees) {
   departmentsStat.textContent = new Set(activeEmployees.map((employee) => employee.department).filter(Boolean)).size;
   newHiresStat.textContent = newHires.length;
   completeStat.textContent = activeEmployees.filter((employee) => employee.reportingTo).length;
+  const heroCount = document.querySelector('#employeeHeroCount');
+  if (heroCount) heroCount.textContent = activeEmployees.length;
 }
 
 function renderEmployeeRows() {
