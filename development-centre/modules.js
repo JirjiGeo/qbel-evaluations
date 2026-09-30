@@ -232,6 +232,7 @@ function renderDevelopmentModules() {
   Object.keys(moduleTables).forEach(moduleRenderList);
   renderEmployeeModuleWidgets();
   renderModuleDashboard();
+  window.renderEmployeeLearning?.();
 }
 
 function moduleField(label, name, control, full = false) {
@@ -422,6 +423,7 @@ document.addEventListener('click', (event) => {
 });
 module$('#learningEmployeeSelect').addEventListener('change', renderEmployeeModuleWidgets);
 window.renderDevelopmentModules = renderDevelopmentModules;
+window.getEmployeeCertificateCount = (employeeId) => moduleRows.certificates.filter((certificate) => certificate.employee_id === employeeId).length;
 window.addEventListener('development-modules-refresh', () => {
   if (!moduleSessionUserId) return;
   moduleLoadedUserId = null;

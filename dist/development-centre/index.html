@@ -53,21 +53,20 @@
     <section class="view" id="learningView">
       <header class="learning-hero"><div><span class="eyebrow">Employee learning portal</span><h2 id="learningWelcome">Welcome</h2><p id="learningRole">Choose an employee to view their development journey.</p></div><label>Employee<select id="learningEmployeeSelect"></select></label></header>
       <section class="next-session-banner" aria-live="polite">
-        <div class="next-session-empty" id="nextCourseEmpty"><span class="eyebrow">Next scheduled course</span><strong>No upcoming course is scheduled.</strong></div>
-        <div class="next-session-details" id="nextCourseDetails" hidden><div class="next-session-title"><span class="eyebrow">Next scheduled course</span><h2 id="nextCourseTitle"></h2><p id="nextCourseSkills"></p></div><div class="next-session-times"><div><span>Session date</span><time id="nextCourseDate"></time></div><div><span>Start time</span><time id="nextCourseTime"></time></div></div></div>
+        <div class="next-session-empty" id="nextCourseEmpty"><span class="eyebrow">Next course</span><strong>No upcoming course is assigned.</strong></div>
+        <div class="next-session-details" id="nextCourseDetails" hidden><div class="next-session-title"><span class="eyebrow">Next course</span><h2 id="nextCourseTitle"></h2><p id="nextCourseSkills"></p></div><div class="next-session-times"><div><span id="nextCourseDateLabel">Session date</span><time id="nextCourseDate"></time></div><div><span id="nextCourseTimeLabel">Start time</span><time id="nextCourseTime"></time></div></div></div>
       </section>
       <div class="employee-portal-layout">
         <main class="portal-main-column">
           <section class="dashboard-panel portal-roadmap-panel"><div class="panel-heading"><div><span class="eyebrow">Your development journey</span><h3>Learning roadmap</h3></div></div><div class="learning-roadmap" id="learningRoadmap"></div></section>
           <div class="learning-progress-banner"><div><span>Learning progress</span><strong id="learningProgress">0%</strong></div><div class="learning-progress-track"><span id="learningProgressBar"></span></div></div>
           <div class="learning-kpis" id="learningKpis"></div>
-          <section class="portal-detail-grid" aria-label="Skills and learning outcomes"><section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Skills development</span><h3>My skills gaps</h3></div></div><div id="learningSkills"></div></section><section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Certification wallet</span><h3>My certificates</h3></div></div><div id="learningCertificates"></div></section><section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Performance impact</span><h3>How learning affects my work</h3></div></div><div id="learningImpact"></div></section></section>
+          <section class="portal-detail-grid" aria-label="Skills and learning outcomes"><section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Skills development</span><h3>My skills gaps</h3></div></div><div id="learningSkills"></div></section><section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Certification wallet</span><h3>My certificates</h3></div></div><div id="learningCertificates"></div></section><section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Assessment centre</span><h3>Exams &amp; tests</h3></div></div><div id="employeeAssessments"></div></section><section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Performance impact</span><h3>How learning affects my work</h3></div></div><div id="learningImpact"></div></section></section>
         </main>
         <aside class="portal-learning-rail" aria-label="My Learning">
           <div class="portal-rail-heading"><div><span class="eyebrow">Employee learning</span><h2>My Learning</h2></div><span class="course-count" id="employeeCourseCount"></span></div>
           <nav class="course-filters course-filters-vertical" aria-label="Course status filter"><button class="course-filter active" type="button" data-course-filter="upcoming" aria-pressed="true">Upcoming</button><button class="course-filter" type="button" data-course-filter="completed" aria-pressed="false">Completed</button><button class="course-filter" type="button" data-course-filter="all" aria-pressed="false">All courses</button></nav>
           <div class="course-list portal-course-list" id="assignedLearning" aria-live="polite"></div>
-          <section class="portal-exams"><span class="eyebrow">Assessment centre</span><h3>Exams &amp; tests</h3><div id="employeeAssessments"></div></section>
         </aside>
       </div>
     </section>

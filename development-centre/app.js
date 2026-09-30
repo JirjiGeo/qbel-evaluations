@@ -87,12 +87,13 @@ function renderEmployeeLearning() {
   const progress = employeeAssignments.length ? Math.round((completed / employeeAssignments.length) * 100) : 0;
   const tests = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category === 'Tests');
   const completedCourses = employeeAssignments.filter((assignment) => assignment.status === 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length;
-  $('#learningWelcome').textContent = `Welcome, ${employee.name}`;
+  $('#learningWelcome').textContent = `Welcome back, ${employee.name}`;
   $('#learningRole').textContent = employee.role || employee.designation || employee.department || 'Employee';
   $('#learningProgress').textContent = `${progress}%`;
   $('#learningProgressBar').style.width = `${progress}%`;
-  $('#learningKpis').innerHTML = [['Active courses', employeeAssignments.filter((assignment) => assignment.status !== 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length], ['Pending exams', tests.filter((assignment) => assignment.status !== 'Completed').length], ['Passed exams', tests.filter((assignment) => assignment.status === 'Completed').length], ['Courses completed', completedCourses]].map(([label, value]) => `<article class="learning-kpi"><span>${label}</span><strong>${value}</strong></article>`).join('');
-  const roadmapItems = [...employeeAssignments].sort((first, second) => (first.assignedDate || '').localeCompare(second.assignedDate || '')).slice(0, 6);
+  const certificatesEarned = window.getEmployeeCertificateCount?.(employee.id) || 0;
+  $('#learningKpis').innerHTML = [['Active courses', employeeAssignments.filter((assignment) => assignment.status !== 'Completed' && resourceMap.get(assignment.resourceId)?.category !== 'Tests').length], ['Completed courses', completedCourses], ['Pending exams', tests.filter((assignment) => assignment.status !== 'Completed').length], ['Certificates earned', certificatesEarned]].map(([label, value]) => `<article class="learning-kpi"><span>${label}</span><strong>${value}</strong></article>`).join('');
+  const roadmapItems = [...employeeAssignments].sort((first, second) => (first.assignedDate || '').localeCompare(second.assignedDate || ''));
   $('#learningRoadmap').innerHTML = roadmapItems.length ? roadmapItems.map((assignment, index) => {
     const resource = resourceMap.get(assignment.resourceId);
     const state = assignment.status === 'Completed' ? 'complete' : index === 0 ? 'current' : 'next';
@@ -101,15 +102,18 @@ function renderEmployeeLearning() {
     return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : index + 1}</span><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Learning activity')} · ${escapeHtml(assignment.status)}</small>${skillNote}</div></div>`;
   }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
   const courseAssignments = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests');
-  const scheduledCourses = courseAssignments.filter((assignment) => assignment.status !== 'Completed' && assignment.scheduledDate).sort((first, second) => `${first.scheduledDate}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate}T${second.scheduledTime || '23:59'}`));
-  const nextCourse = scheduledCourses[0];
+  const upcomingCourses = courseAssignments.filter((assignment) => assignment.status !== 'Completed').sort((first, second) => `${first.scheduledDate || first.dueDate || '9999-12-31'}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate || second.dueDate || '9999-12-31'}T${second.scheduledTime || '23:59'}`));
+  const nextCourse = upcomingCourses[0];
   $('#nextCourseEmpty').hidden = Boolean(nextCourse);
   $('#nextCourseDetails').hidden = !nextCourse;
   if (nextCourse) {
     const resource = resourceMap.get(nextCourse.resourceId);
     $('#nextCourseTitle').textContent = resource?.title || 'Deleted resource';
-    $('#nextCourseDate').textContent = new Date(`${nextCourse.scheduledDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    $('#nextCourseTime').textContent = nextCourse.scheduledTime ? new Date(`1970-01-01T${nextCourse.scheduledTime}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : 'Time to be confirmed';
+    const courseDate = nextCourse.scheduledDate || nextCourse.dueDate;
+    $('#nextCourseDateLabel').textContent = nextCourse.scheduledDate ? 'Session date' : 'Due date';
+    $('#nextCourseDate').textContent = courseDate ? new Date(`${courseDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Not scheduled';
+    $('#nextCourseTimeLabel').textContent = nextCourse.scheduledDate ? 'Start time' : 'Session time';
+    $('#nextCourseTime').textContent = nextCourse.scheduledTime ? new Date(`1970-01-01T${nextCourse.scheduledTime}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : 'Not scheduled';
     const skills = nextCourse.skillsToDevelop || nextCourse.skills_to_develop || [];
     $('#nextCourseSkills').textContent = skills.length ? `Skills: ${skills.join(', ')}` : `${resource?.category || 'Course'} · ${nextCourse.status}`;
   }
