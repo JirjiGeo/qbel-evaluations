@@ -289,6 +289,20 @@ function showModule(moduleName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function openEmployeeLearningPortal(employee, attempt = 0) {
+  showModule('development');
+  const frame = document.querySelector('#developmentFrame');
+  const frameWindow = frame?.contentWindow;
+  const learningSelect = frameWindow?.document?.querySelector('#learningEmployeeSelect');
+  if (frameWindow && typeof frameWindow.switchView === 'function' && learningSelect) {
+    frameWindow.switchView('learning');
+    learningSelect.value = employee.id;
+    learningSelect.dispatchEvent(new Event('change'));
+    return;
+  }
+  if (attempt < 40) window.setTimeout(() => openEmployeeLearningPortal(employee, attempt + 1), 150);
+}
+
 function avatarMarkup(employee) {
   return `<span class="avatar avatar-${employee.color}">${employee.initials}</span>`;
 }
@@ -580,8 +594,8 @@ function renderEmployeeRows() {
       <div class="employee-card-top">
         ${avatarMarkup(employee)}
         <div class="employee-card-identity"><strong>${escapeHtml(employee.name)}</strong><small>${escapeHtml(employee.role || employee.designation || 'Not assigned')}</small></div>
-        <span class="employee-card-department">${escapeHtml(employee.department || 'Unassigned')}</span>
       </div>
+      <span class="employee-card-department">${escapeHtml(employee.department || 'Unassigned')}</span>
       <div class="employee-card-meta">
         <div><span>Joining date</span><strong>${escapeHtml(employee.joiningDate || 'Not provided')}</strong></div>
         <div><span>Reporting to</span><strong>${escapeHtml(employee.reportingTo || 'Not provided')}</strong></div>
@@ -1321,7 +1335,7 @@ function showEmployeeScores(employee) {
     modalElement = document.createElement('div');
     modalElement.id = 'scoreHistoryModal';
     modalElement.className = 'modal-backdrop open';
-    modalElement.innerHTML = '<section class="evaluation-modal score-history-modal" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle"><button class="close-button" id="closeScoreHistory" aria-label="Close employee profile">×</button><span class="section-kicker">Employee profile</span><h2 id="scoreHistoryTitle"></h2><p class="score-history-subtitle"></p><div class="employee-profile-tabs"><button type="button" class="employee-profile-tab active" data-profile-tab="evaluations">Evaluations</button><button type="button" class="employee-profile-tab" data-profile-tab="learning">Learning journey</button><button type="button" class="employee-profile-tab" data-profile-tab="assets">Assigned assets</button><button type="button" class="employee-profile-tab" data-profile-tab="documents">Documents</button></div><div class="employee-profile-panel active" data-profile-panel="evaluations"><div class="score-history-list"></div></div><div class="employee-profile-panel" data-profile-panel="learning"><div class="employee-learning-profile"></div></div><div class="employee-profile-panel" data-profile-panel="assets"><div class="employee-assets-profile"></div></div><div class="employee-profile-panel" data-profile-panel="documents"><div class="employee-documents-profile"></div></div></section>';
+    modalElement.innerHTML = '<section class="evaluation-modal score-history-modal" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle"><button class="close-button" id="closeScoreHistory" aria-label="Close employee profile">×</button><span class="section-kicker">Employee profile</span><h2 id="scoreHistoryTitle"></h2><p class="score-history-subtitle"></p><div class="employee-profile-tabs"><button type="button" class="employee-profile-tab active" data-profile-tab="evaluations">Evaluations</button><button type="button" class="employee-profile-tab" data-profile-tab="learning">Learning journey</button><button type="button" class="employee-profile-tab" data-profile-tab="assets">Assigned assets</button><button type="button" class="employee-profile-tab" data-profile-tab="documents">Documents</button></div><div class="employee-profile-panel active" data-profile-panel="evaluations"><div class="score-history-list"></div></div><div class="employee-profile-panel" data-profile-panel="learning"><div class="profile-panel-header"><span class="profile-panel-title">Assigned training</span><button type="button" class="profile-open-portal-button" data-open-learning-portal>Open learning path in Development Centre →</button></div><div class="employee-learning-profile"></div></div><div class="employee-profile-panel" data-profile-panel="assets"><div class="employee-assets-profile"></div></div><div class="employee-profile-panel" data-profile-panel="documents"><div class="employee-documents-profile"></div></div></section>';
     document.body.appendChild(modalElement);
     const style = document.createElement('style');
     style.textContent = '.score-history-modal{width:min(920px,100%);max-height:92vh;overflow:auto}.score-history-subtitle{color:var(--muted);font-size:12px}.score-history-list{display:grid;gap:10px;margin-top:20px}.score-history-row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.score-history-row strong{font:600 18px "Space Grotesk";color:var(--brand)}.score-history-row small{display:block;color:var(--muted);margin-top:4px}.score-history-score{font:700 22px "Space Grotesk";color:var(--brand);white-space:nowrap}.score-history-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.score-history-actions button{border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--brand);font-size:10px;font-weight:700;padding:7px 9px}.score-history-actions button:hover{background:#f3f7f4}.score-history-actions button[data-history-action="delete"]{color:#b85c52}.score-history-empty{padding:20px;text-align:center;background:#fafafa;color:var(--muted)}@media(max-width:760px){.score-history-row{grid-template-columns:1fr}.score-history-actions{justify-content:flex-start}}';
@@ -1348,6 +1362,14 @@ function showEmployeeScores(employee) {
       const previewUrl = createPdfPreviewUrl(employeeDocument.dataUrl);
       documentPanel.querySelector('.profile-document-preview')?.remove();
       documentPanel.insertAdjacentHTML('beforeend', `<div class="profile-document-preview"><div><strong>${escapeHtml(employeeDocument.name)}</strong><button type="button" class="document-preview-close" data-close-profile-document>Close</button></div><iframe class="profile-document-pdf" title="${escapeHtml(employeeDocument.name)}" src="${previewUrl}"></iframe></div>`);
+    });
+    modalElement.addEventListener('click', (event) => {
+      const openPortalButton = event.target.closest('[data-open-learning-portal]');
+      if (!openPortalButton) return;
+      const profileEmployee = modalElement._profileEmployee;
+      if (!profileEmployee) return;
+      modalElement.remove();
+      openEmployeeLearningPortal(profileEmployee);
     });
     modalElement.addEventListener('click', async (event) => {
       const assetButton = event.target.closest('[data-asset-action]');

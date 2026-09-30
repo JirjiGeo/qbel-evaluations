@@ -61,20 +61,21 @@
 .employee-hero-badge span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#bfe4d2}
 .employee-hero-badge strong{font:700 34px 'Space Grotesk',sans-serif}
 .employee-hero-badge small{color:#d9ede3;font-size:11px}
-.employee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
-.employee-card{display:flex;flex-direction:column;gap:16px;padding:20px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 24px rgba(1,50,32,.04);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.employee-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:20px}
+.employee-card{display:flex;flex-direction:column;gap:14px;padding:22px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 24px rgba(1,50,32,.04);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
 .employee-card:hover{transform:translateY(-3px);border-color:#9fc2af;box-shadow:0 16px 32px rgba(1,50,32,.09)}
-.employee-card-top{display:flex;align-items:center;gap:12px}
-.employee-card-identity{min-width:0;display:grid;gap:2px}
-.employee-card-identity strong{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.employee-card-top{display:flex;align-items:center;gap:14px}
+.employee-card-top .avatar{width:46px;height:46px;font-size:14px;flex:none}
+.employee-card-identity{min-width:0;display:grid;gap:3px}
+.employee-card-identity strong{font-size:15px;line-height:1.3;color:var(--ink);word-break:break-word}
 .employee-card-identity small{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.employee-card-department{margin-left:auto;flex:none;padding:5px 10px;border-radius:999px;background:#edf4f0;color:var(--brand);font-size:10px;font-weight:700}
-.employee-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.employee-card-meta div{display:grid;gap:3px;min-width:0}
+.employee-card-department{justify-self:start;padding:5px 12px;border-radius:999px;background:#edf4f0;color:var(--brand);font-size:10px;font-weight:700}
+.employee-card-meta{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.employee-card-meta div{display:grid;gap:4px;min-width:0}
 .employee-card-meta span{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.3px}
 .employee-card-meta strong{font-size:12px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .employee-card-actions{display:flex;gap:8px;flex-wrap:wrap}
-.employee-card-actions button{flex:1;min-height:32px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:11px;font-weight:700}
+.employee-card-actions button{flex:1;min-height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:11px;font-weight:700}
 .employee-card-actions button:hover{background:#f2f7f3;border-color:#aac8b5}
 .employee-card-actions button[data-employee-action="scores"]{background:var(--brand);border-color:var(--brand);color:#fff}
 .employee-card-actions button[data-employee-action="scores"]:hover{background:#024b31}
@@ -82,4 +83,8 @@
 .employee-card-actions button.employee-card-delete:hover{background:#fff3f1;border-color:#dfa39a}
 .employee-grid-empty{grid-column:1/-1;padding:40px 20px;text-align:center}
 #employeeDepartmentFilter{min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:12px}
+.profile-panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.profile-panel-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.profile-open-portal-button{min-height:32px;padding:0 12px;border:1px solid var(--brand);border-radius:8px;background:#fff;color:var(--brand);font-size:11px;font-weight:700}
+.profile-open-portal-button:hover{background:var(--brand);color:#fff}
 @media(max-width:760px){.employee-hero-banner{flex-direction:column;align-items:stretch;text-align:left;padding:26px}.employee-hero-badge{justify-self:start}}
