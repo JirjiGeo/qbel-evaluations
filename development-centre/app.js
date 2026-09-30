@@ -101,6 +101,11 @@ function renderEmployeeLearning() {
     return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : index + 1}</span><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Learning activity')} · ${escapeHtml(assignment.status)}</small>${skillNote}</div></div>`;
   }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
   const courseAssignments = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests');
+  const upcomingCourses = courseAssignments.filter((assignment) => assignment.status !== 'Completed').sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31')).slice(0, 4);
+  $('#learningUpcomingPreview').innerHTML = upcomingCourses.length ? upcomingCourses.map((assignment) => {
+    const resource = resourceMap.get(assignment.resourceId);
+    return `<article class="upcoming-course-row"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(resource?.category || 'Course')} · ${escapeHtml(assignment.status)}</small></div><time>${escapeHtml(assignment.dueDate || 'No due date')}</time></article>`;
+  }).join('') : '<div class="course-empty">No upcoming courses.</div>';
   const courseFilter = document.querySelector('[data-course-filter].active')?.dataset.courseFilter || 'upcoming';
   const filteredCourses = courseAssignments.filter((assignment) => courseFilter === 'all' || (courseFilter === 'completed' ? assignment.status === 'Completed' : assignment.status !== 'Completed')).sort((first, second) => (first.dueDate || '9999-12-31').localeCompare(second.dueDate || '9999-12-31'));
   $('#employeeCourseCount').textContent = `${filteredCourses.length} of ${courseAssignments.length}`;
@@ -286,7 +291,37 @@ function renderLearningProfile() {
 }
 function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); $('#modulesView').classList.toggle('active', view === 'modules'); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } if (view === 'modules') window.renderDevelopmentModules?.(); }
 
+function activatePortalView(view, moveFocus = false) {
+  const tabs = [...document.querySelectorAll('[data-portal-view]')];
+  const selectedTab = tabs.find((tab) => tab.dataset.portalView === view);
+  if (!selectedTab) return;
+  tabs.forEach((tab) => {
+    const active = tab === selectedTab;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
+  document.querySelectorAll('[data-portal-panel]').forEach((panel) => {
+    const active = panel.dataset.portalPanel === view;
+    panel.classList.toggle('active', active);
+    panel.hidden = !active;
+  });
+  if (moveFocus) selectedTab.focus();
+}
+
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
+document.querySelectorAll('[data-portal-view]').forEach((tab) => {
+  tab.addEventListener('click', () => activatePortalView(tab.dataset.portalView));
+  tab.addEventListener('keydown', (event) => {
+    const tabs = [...document.querySelectorAll('[data-portal-view]')];
+    const index = tabs.indexOf(tab);
+    const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index - 1 + tabs.length) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
+    if (nextIndex < 0) return;
+    event.preventDefault();
+    activatePortalView(tabs[nextIndex].dataset.portalView, true);
+  });
+});
+document.querySelectorAll('[data-open-portal-view]').forEach((button) => button.addEventListener('click', () => activatePortalView(button.dataset.openPortalView)));
 document.querySelectorAll('[data-learning-action]').forEach((button) => button.addEventListener('click', () => { const action = button.dataset.learningAction; if (['library', 'tracker'].includes(action)) switchView(action); else if (window.openDevelopmentModule) window.openDevelopmentModule(action); else notify(`${button.textContent.trim()} is not available yet.`); }));
 document.querySelectorAll('.resource-tabs .resource-tab').forEach((tab) => tab.addEventListener('click', () => { activeResourceCategory = tab.dataset.resourceCategory; document.querySelectorAll('.resource-tabs .resource-tab').forEach((item) => item.classList.toggle('active', item === tab)); closeResourcePreview(); renderResources(); }));
 $('#openResourceForm').addEventListener('click', () => openModal('resourceModal'));

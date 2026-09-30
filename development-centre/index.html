@@ -54,14 +54,30 @@
       <header class="learning-hero"><div><span class="eyebrow">Employee learning portal</span><h2 id="learningWelcome">Welcome</h2><p id="learningRole">Choose an employee to view their development journey.</p></div><label>Employee<select id="learningEmployeeSelect"></select></label></header>
       <div class="learning-progress-banner"><div><span>Learning progress</span><strong id="learningProgress">0%</strong></div><div class="learning-progress-track"><span id="learningProgressBar"></span></div></div>
       <div class="learning-kpis" id="learningKpis"></div>
-      <div class="employee-learning-grid">
-        <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Development journey</span><h3>My learning roadmap</h3></div></div><div class="learning-roadmap" id="learningRoadmap"></div></section>
-        <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Assigned learning</span><h3>Upcoming courses</h3></div><span class="course-count" id="employeeCourseCount"></span></div><nav class="course-filters" aria-label="Filter courses"><button class="course-filter active" type="button" data-course-filter="upcoming" aria-pressed="true">Upcoming</button><button class="course-filter" type="button" data-course-filter="completed" aria-pressed="false">Completed</button><button class="course-filter" type="button" data-course-filter="all" aria-pressed="false">All</button></nav><div class="course-list" id="assignedLearning" aria-live="polite"></div></section>
-        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Assessment centre</span><h3>Exams &amp; tests</h3></div></div><div id="employeeAssessments"></div></section>
-        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Skills development</span><h3>My skills gaps</h3></div></div><div id="learningSkills"></div></section>
-        <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Certification wallet</span><h3>My certificates</h3></div></div><div id="learningCertificates"></div></section>
-        <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Performance impact</span><h3>How learning affects my work</h3></div></div><div id="learningImpact"></div></section>
-      </div>
+      <nav class="portal-tabs" role="tablist" aria-label="Employee learning views">
+        <button class="portal-tab active" id="portalTab-overview" type="button" role="tab" aria-selected="true" aria-controls="portalPanel-overview" tabindex="0" data-portal-view="overview">Overview</button>
+        <button class="portal-tab" id="portalTab-learning" type="button" role="tab" aria-selected="false" aria-controls="portalPanel-learning" tabindex="-1" data-portal-view="learning">My learning</button>
+        <button class="portal-tab" id="portalTab-growth" type="button" role="tab" aria-selected="false" aria-controls="portalPanel-growth" tabindex="-1" data-portal-view="growth">Skills &amp; credentials</button>
+      </nav>
+      <section class="portal-tab-panel active" id="portalPanel-overview" role="tabpanel" aria-labelledby="portalTab-overview">
+        <div class="portal-overview-grid">
+          <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Development journey</span><h3>My learning roadmap</h3></div></div><div class="learning-roadmap" id="learningRoadmap"></div></section>
+          <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Coming up</span><h3>Upcoming courses</h3></div><button class="text-action" type="button" data-open-portal-view="learning">View all</button></div><div class="upcoming-course-list" id="learningUpcomingPreview"></div></section>
+        </div>
+      </section>
+      <section class="portal-tab-panel" id="portalPanel-learning" role="tabpanel" aria-labelledby="portalTab-learning" hidden>
+        <div class="employee-learning-grid">
+          <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Assigned learning</span><h3>My courses</h3></div><span class="course-count" id="employeeCourseCount"></span></div><nav class="course-filters" aria-label="Filter courses"><button class="course-filter active" type="button" data-course-filter="upcoming" aria-pressed="true">Upcoming</button><button class="course-filter" type="button" data-course-filter="completed" aria-pressed="false">Completed</button><button class="course-filter" type="button" data-course-filter="all" aria-pressed="false">All</button></nav><div class="course-list" id="assignedLearning" aria-live="polite"></div></section>
+          <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Assessment centre</span><h3>Exams &amp; tests</h3></div></div><div id="employeeAssessments"></div></section>
+        </div>
+      </section>
+      <section class="portal-tab-panel" id="portalPanel-growth" role="tabpanel" aria-labelledby="portalTab-growth" hidden>
+        <div class="employee-learning-grid">
+          <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Skills development</span><h3>My skills gaps</h3></div></div><div id="learningSkills"></div></section>
+          <section class="dashboard-panel"><div class="panel-heading"><div><span class="eyebrow">Certification wallet</span><h3>My certificates</h3></div></div><div id="learningCertificates"></div></section>
+          <section class="dashboard-panel learning-wide"><div class="panel-heading"><div><span class="eyebrow">Performance impact</span><h3>How learning affects my work</h3></div></div><div id="learningImpact"></div></section>
+        </div>
+      </section>
     </section>
 
     <section class="view" id="libraryView">
