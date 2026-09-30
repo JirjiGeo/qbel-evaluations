@@ -200,8 +200,6 @@ function renderEmployeeModuleWidgets() {
     const courses = skill.courses.map((course) => `${course.title} (${course.status})`).join(', ');
     return `<article class="learning-item"><strong>${moduleEscape(skill.name)}</strong><small>${levels}${courses ? ` · ${moduleEscape(courses)}` : ''}</small></article>`;
   }).join('') : '<p class="learning-empty">No skills selected yet. Add skills when assigning a training course.</p>';
-  const plans = moduleRows.plans.filter((row) => row.employee_id === employeeId);
-  module$('#learningPlan').innerHTML = plans.length ? plans.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.goal)}</strong><small>${moduleEscape(row.status)} · Due ${moduleDate(row.due_date)}</small></article>`).join('') : '<p class="learning-empty">No development goals recorded.</p>';
   const certificates = moduleRows.certificates.filter((row) => row.employee_id === employeeId);
   module$('#learningCertificates').innerHTML = certificates.length ? certificates.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.certificate_name)}</strong><small>${moduleEscape(row.issuer || 'Issuer not recorded')} · Expires ${moduleDate(row.expires_on)}</small>${row.training_assignment_id ? `<button class="row-action" type="button" data-print-certificate="${moduleEscape(row.id)}">Print / Save PDF</button>` : ''}</article>`).join('') : '<p class="learning-empty">No certificates recorded.</p>';
   const assignmentsById = new Map(moduleAssignments.map((item) => [item.id, item]));
