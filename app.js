@@ -1547,3 +1547,11 @@ if (typeof Auth !== 'undefined' && Auth.currentUser) {
   showModule('home');
   void loadCloudData();
 }
+
+document.querySelectorAll('[data-action="sign-out"]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    if (typeof Auth === 'undefined') return;
+    await Auth.logout();
+    window.location.reload();
+  });
+});
