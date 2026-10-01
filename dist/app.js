@@ -1734,6 +1734,43 @@ function renderAssetReport() {
   document.querySelector('#assetReportRows').innerHTML = records.map(({ asset, employee }) => `<tr><td>${escapeHtml(employee?.name || asset.assignedTo || 'Unknown employee')}</td><td>${escapeHtml(employee?.department || 'Not recorded')}</td><td>${escapeHtml(asset.assetType || asset.name || asset.assetName || 'Company asset')}</td><td>${escapeHtml(asset.description || '')}</td><td>${escapeHtml(asset.serialNumber || asset.reference || 'Not recorded')}</td><td>${escapeHtml(asset.dateIssued || 'Not recorded')}</td><td>${escapeHtml(asset.dateReturned || 'Not returned')}</td><td>${escapeHtml(asset.handover?.name || 'Not attached')}</td></tr>`).join('') || '<tr><td colspan="8" class="empty-state">No asset records match these filters.</td></tr>';
 }
 
+function resourceAssignmentGroups() {
+  const department = document.querySelector('#reportResourceDepartment').value;
+  const employeeById = new Map(employees.filter((employee) => !employee.deleted).map((employee) => [employee.id, employee]));
+  const resourcesById = new Map(reportResources.map((resource) => [resource.id, resource]));
+  reportAssignments.forEach((assignment) => {
+    if (!resourcesById.has(assignment.resourceId)) resourcesById.set(assignment.resourceId, { id: assignment.resourceId, title: 'Deleted resource', category: 'Unknown' });
+  });
+  const assignmentsByResource = new Map();
+  reportAssignments.forEach((assignment) => {
+    const employee = employeeById.get(assignment.employeeId);
+    if (!employee || (department !== 'all' && employee.department !== department)) return;
+    const records = assignmentsByResource.get(assignment.resourceId) || [];
+    records.push({ assignment, employee });
+    assignmentsByResource.set(assignment.resourceId, records);
+  });
+  return [...resourcesById.values()].map((resource) => {
+    const assignments = assignmentsByResource.get(resource.id) || [];
+    const recipientCounts = new Map();
+    assignments.forEach(({ employee }) => recipientCounts.set(employee.id, { employee, count: (recipientCounts.get(employee.id)?.count || 0) + 1 }));
+    const recipients = [...recipientCounts.values()].sort((first, second) => first.employee.name.localeCompare(second.employee.name));
+    const latest = assignments.slice().sort((first, second) => String(second.assignment.assignedDate || '').localeCompare(String(first.assignment.assignedDate || '')))[0] || null;
+    return { resource, assignments, recipients, latest };
+  }).filter((group) => department === 'all' || group.assignments.length)
+    .sort((first, second) => String(first.resource.title || '').localeCompare(String(second.resource.title || '')));
+}
+
+function renderResourceAssignmentReport() {
+  const groups = resourceAssignmentGroups();
+  const assignmentCount = groups.reduce((total, group) => total + group.assignments.length, 0);
+  const recipientIds = new Set(groups.flatMap((group) => group.assignments.map(({ employee }) => employee.id)));
+  document.querySelector('#resourceReportMetrics').innerHTML = `<div><span>Resources</span><strong>${groups.length}</strong></div><div><span>Assignments</span><strong>${assignmentCount}</strong></div><div><span>Employees assigned</span><strong>${recipientIds.size}</strong></div>`;
+  document.querySelector('#resourceReportRows').innerHTML = groups.map(({ resource, assignments, recipients, latest }) => {
+    const recipientText = recipients.map(({ employee, count }) => `${employee.name}${count > 1 ? ` (${count})` : ''}`).join(', ') || 'Not assigned';
+    return `<tr><td>${escapeHtml(resource.title || 'Untitled resource')}</td><td>${escapeHtml(resource.category || 'Not recorded')}</td><td><strong>${assignments.length}</strong></td><td>${escapeHtml(recipientText)}</td><td>${escapeHtml(latest?.assignment.assignedDate || '—')}</td><td>${escapeHtml(latest?.assignment.status || 'Not assigned')}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty-state">No resources or assignments match this department.</td></tr>';
+}
+
 function selectedReportEmployee() {
   return employees.find((employee) => employee.id === document.querySelector('#reportEmployeeSelect').value && !employee.deleted);
 }
@@ -1772,6 +1809,7 @@ function renderReports() {
   const departments = reportDepartments().map((department) => ({ value: department, label: department }));
   setReportOptions(document.querySelector('#reportEvaluationDepartment'), departments, 'All departments');
   setReportOptions(document.querySelector('#reportAssetDepartment'), departments, 'All departments');
+  setReportOptions(document.querySelector('#reportResourceDepartment'), departments, 'All departments');
   const employeeOptions = activeEmployees.map((employee) => ({ value: employee.id, label: employee.name }));
   setReportOptions(document.querySelector('#reportAssetEmployee'), employeeOptions, 'All employees');
   setReportOptions(document.querySelector('#reportEmployeeSelect'), employeeOptions, null);
@@ -1781,6 +1819,7 @@ function renderReports() {
   setReportOptions(document.querySelector('#reportEvaluationQuarter'), quarters.map((key) => ({ value: key, label: quarterFromDate(`${key.slice(0, 4)}-${(Number(key.slice(-1)) - 1) * 3 + 1}-01`)?.label || key })), 'All quarters', currentQuarter);
   renderEvaluationReport();
   renderAssetReport();
+  renderResourceAssignmentReport();
   renderEmployeeReport();
 }
 
@@ -1818,6 +1857,7 @@ document.querySelector('#reportEvaluationQuarter').addEventListener('change', re
 document.querySelector('#reportEvaluationDepartment').addEventListener('change', renderEvaluationReport);
 document.querySelector('#reportAssetDepartment').addEventListener('change', renderAssetReport);
 document.querySelector('#reportAssetEmployee').addEventListener('change', renderAssetReport);
+document.querySelector('#reportResourceDepartment').addEventListener('change', renderResourceAssignmentReport);
 document.querySelector('#reportEmployeeSelect').addEventListener('change', renderEmployeeReport);
 document.querySelector('#exportEvaluationReport').addEventListener('click', () => {
   const rows = reportEvaluationRecords().map(({ employee, evaluation }) => [employee.name, employee.department, evaluation.date || '', evaluation.evaluator || employee.evaluator || employee.reportingTo || '', evaluation.score ?? '', evaluation.strength || '', evaluation.improvement || '', evaluation.development || '', evaluation.evaluatorComment || evaluation.managerComments || '']);
@@ -1826,6 +1866,12 @@ document.querySelector('#exportEvaluationReport').addEventListener('click', () =
 document.querySelector('#exportAssetReport').addEventListener('click', () => {
   const rows = selectedReportAssets().map(({ asset, employee }) => [employee?.name || asset.assignedTo || 'Unknown employee', employee?.department || '', asset.assetType || asset.name || asset.assetName || 'Company asset', asset.description || '', asset.serialNumber || asset.reference || '', asset.dateIssued || '', asset.dateReturned || '', asset.handover?.name || '']);
   downloadReportCsv(reportFilename('company-assets'), ['Employee', 'Department', 'Asset', 'Description', 'Serial / asset No.', 'Date issued', 'Date returned', 'Handover file'], rows);
+});
+document.querySelector('#exportResourceReport').addEventListener('click', () => {
+  const rows = resourceAssignmentGroups().flatMap(({ resource, assignments }) => assignments.length
+    ? assignments.map(({ assignment, employee }) => [resource.title || 'Untitled resource', resource.category || '', assignments.length, employee.name, employee.department, assignment.assignedDate || '', assignment.status || 'Assigned', assignment.resultStatus || 'Pending', assignment.dueDate || '', assignment.passedDate || ''])
+    : [[resource.title || 'Untitled resource', resource.category || '', 0, '', '', '', 'Not assigned', '', '', '']]);
+  downloadReportCsv(reportFilename('resource-assignments'), ['Resource', 'Category', 'Times assigned', 'Assigned to', 'Department', 'Assigned date', 'Status', 'Result', 'Due date', 'Passed date'], rows);
 });
 document.querySelector('#exportEmployeeReport').addEventListener('click', () => {
   const employee = selectedReportEmployee();

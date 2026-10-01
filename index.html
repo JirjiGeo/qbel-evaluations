@@ -220,6 +220,7 @@
           <div class="report-switcher" role="tablist" aria-label="Report type">
             <button type="button" class="report-switch active" data-report-view="evaluations" aria-pressed="true">Evaluation results</button>
             <button type="button" class="report-switch" data-report-view="assets" aria-pressed="false">Company assets</button>
+            <button type="button" class="report-switch" data-report-view="resources" aria-pressed="false">Resource assignments</button>
             <button type="button" class="report-switch" data-report-view="employee" aria-pressed="false">Employee progress</button>
           </div>
           <section class="report-panel active" data-report-panel="evaluations">
@@ -231,6 +232,11 @@
             <div class="report-heading"><div><span class="section-kicker">Asset register</span><h3>Assigned company assets</h3></div><div class="report-controls"><label>Department<select id="reportAssetDepartment"><option value="all">All departments</option></select></label><label>Employee<select id="reportAssetEmployee"><option value="all">All employees</option></select></label><button type="button" class="primary-button" id="exportAssetReport">Export CSV</button></div></div>
             <div class="report-metrics" id="assetReportMetrics"></div>
             <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Asset</th><th>Description</th><th>Serial / asset No.</th><th>Issued</th><th>Returned</th><th>Handover file</th></tr></thead><tbody id="assetReportRows"></tbody></table></div>
+          </section>
+          <section class="report-panel" data-report-panel="resources">
+            <div class="report-heading"><div><span class="section-kicker">Learning resource register</span><h3>Assignment frequency and recipients</h3></div><div class="report-controls"><label>Department<select id="reportResourceDepartment"><option value="all">All departments</option></select></label><button type="button" class="primary-button" id="exportResourceReport">Export CSV</button></div></div>
+            <div class="report-metrics" id="resourceReportMetrics"></div>
+            <div class="table-wrap"><table><thead><tr><th>Resource</th><th>Category</th><th>Times assigned</th><th>Assigned to</th><th>Latest assignment</th><th>Latest status</th></tr></thead><tbody id="resourceReportRows"></tbody></table></div>
           </section>
           <section class="report-panel" data-report-panel="employee">
             <div class="report-heading"><div><span class="section-kicker">Individual summary</span><h3>Evaluation and learning progress</h3></div><div class="report-controls"><label>Employee<select id="reportEmployeeSelect"><option value="">Select an employee</option></select></label><button type="button" class="primary-button" id="exportEmployeeReport" disabled>Export CSV</button></div></div>
