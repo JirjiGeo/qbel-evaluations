@@ -81,6 +81,8 @@
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
+        <span class="nav-group-title">Reporting</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
@@ -107,6 +109,8 @@
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
+        <span class="nav-group-title">Reporting</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
@@ -142,7 +146,7 @@
         </article>
       </section>
       <section class="workspace-section" id="employees">
-        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><select id="employeeDepartmentFilter" aria-label="Filter by department"><option value="all">All departments</option></select><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
+        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><select id="employeeDepartmentFilter" aria-label="Filter by department"><option value="all">All departments</option></select><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="outline-button" type="button" id="exportEmployeesExcelButton">Export Excel</button><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
         <div class="employee-grid" id="employeeRows"></div>
       </section>
     </main>
@@ -163,6 +167,8 @@
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
+        <span class="nav-group-title">Reporting</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
@@ -302,6 +308,7 @@
   <div class="toast" id="toast" role="status">Evaluation saved successfully.</div>
   <script src="supabase-config.js"></script>
   <script src="auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

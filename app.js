@@ -244,6 +244,7 @@ const employeeSearchInput = document.querySelector('#employeeSearchInput');
 const employeeDepartmentFilter = document.querySelector('#employeeDepartmentFilter');
 const importEmployeesButton = document.querySelector('#importEmployeesButton');
 const employeeCsvInput = document.querySelector('#employeeCsvInput');
+const exportEmployeesExcelButton = document.querySelector('#exportEmployeesExcelButton');
 const employeeModal = document.querySelector('#employeeModal');
 const employeeForm = document.querySelector('#employeeForm');
 const searchInput = document.querySelector('#searchInput');
@@ -671,15 +672,19 @@ function renderNewFacesPulse(activeEmployees) {
 }
 
 
-function renderEmployeeRows() {
+function filteredEmployeeDirectory() {
   const query = employeeSearchInput.value.toLowerCase().trim();
   const selectedDepartment = employeeDepartmentFilter?.value || 'all';
+  return employees.filter((employee) => !employee.deleted)
+    .filter((employee) => selectedDepartment === 'all' || employee.department === selectedDepartment)
+    .filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
+}
+
+function renderEmployeeRows() {
   const activeEmployees = employees.filter((employee) => !employee.deleted);
   renderEmployeeDepartmentFilterOptions();
   renderEmployeeStats(activeEmployees);
-  const filtered = activeEmployees
-    .filter((employee) => selectedDepartment === 'all' || employee.department === selectedDepartment)
-    .filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
+  const filtered = filteredEmployeeDirectory();
   employeeRows.innerHTML = filtered.map((employee) => `
     <article class="employee-card">
       <div class="employee-card-top">
@@ -1330,6 +1335,28 @@ document.querySelector('#newEvaluationButton').addEventListener('click', () => o
 document.querySelector('#heroStartButton').addEventListener('click', () => openModal());
 document.querySelector('#addEmployeeButton').addEventListener('click', openEmployeeModal);
 importEmployeesButton.addEventListener('click', () => employeeCsvInput.click());
+exportEmployeesExcelButton?.addEventListener('click', () => {
+  if (!window.XLSX?.utils) {
+    toast.textContent = 'Excel export is unavailable. Refresh the page and try again.';
+    toast.classList.add('show');
+    window.setTimeout(() => toast.classList.remove('show'), 3500);
+    return;
+  }
+  const headers = ['Name', 'Joining date', 'Department', 'Designation', 'Reporting to'];
+  const rows = filteredEmployeeDirectory().map((employee) => [
+    employee.name || '',
+    employee.joiningDate || '',
+    employee.department || '',
+    employee.role || employee.designation || '',
+    employee.reportingTo || ''
+  ]);
+  const worksheet = window.XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  worksheet['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 22 }, { wch: 30 }, { wch: 28 }];
+  if (worksheet['!ref']) worksheet['!autofilter'] = { ref: worksheet['!ref'] };
+  const workbook = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(workbook, worksheet, 'Employees');
+  window.XLSX.writeFile(workbook, `employee-list-${new Date().toISOString().slice(0, 10)}.xlsx`);
+});
 employeeCsvInput.addEventListener('change', async () => {
   const file = employeeCsvInput.files?.[0];
   employeeCsvInput.value = '';
