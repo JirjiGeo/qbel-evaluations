@@ -228,6 +228,9 @@ let employeeDocumentPreviewIndex = null;
 let employeeDocumentPreviewUrl = null;
 let evaluationModalMode = 'new';
 let editingEvaluationIndex = null;
+let reportAssets = [];
+let reportAssignments = [];
+let reportResources = [];
 
 const deletedEvaluationIds = new Set(JSON.parse(localStorage.getItem('northstar-deleted-evaluations') || '[]'));
 const cloudEmployeeIds = new Set();
@@ -843,6 +846,7 @@ async function loadCloudData() {
   renderEmployeeRows();
   renderRows();
   updateEmployeeOptions();
+  if (document.querySelector('#reportsTab')?.classList.contains('active')) renderReports();
 }
 
 async function syncCloudData() {
@@ -1643,8 +1647,198 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
 function switchTab(tabName) {
   document.querySelectorAll('[data-tab-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.tabPanel === tabName));
   syncSidebarNav('evaluations', tabName);
+  if (tabName === 'reports') void refreshReportData();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function readReportStorage(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (error) { return []; }
+}
+
+async function refreshReportData() {
+  reportAssets = readReportStorage('qbel-operations-assets');
+  reportAssignments = readReportStorage('qbel-development-training');
+  reportResources = readReportStorage('qbel-development-library');
+  if (window.supabaseClient) {
+    const [assetResult, assignmentResult, resourceResult] = await Promise.all([
+      window.supabaseClient.from('employee_assets').select('id, employee_id, asset_type, description, serial_asset_no, date_issued, date_returned, handover_form_name').order('created_at', { ascending: true }),
+      window.supabaseClient.from('training_assignments').select('id, employee_id, resource_id, quarter, assigned_date, due_date, status, completed_date, result_status, result_source, passed_date, training_valid_until, skills_to_develop').order('created_at', { ascending: true }),
+      window.supabaseClient.from('development_resources').select('id, title, category')
+    ]);
+    if (!assetResult.error) {
+      const localAssets = reportAssets.filter((asset) => !isCloudId(asset.id));
+      const cloudAssets = (assetResult.data || []).map((asset) => ({ id: asset.id, employeeId: asset.employee_id, assetType: asset.asset_type, description: asset.description, serialNumber: asset.serial_asset_no, dateIssued: asset.date_issued, dateReturned: asset.date_returned || '', handover: asset.handover_form_name ? { name: asset.handover_form_name, dataUrl: asset.handover_form_data } : null }));
+      reportAssets = [...localAssets, ...cloudAssets];
+    } else console.error('Could not refresh report assets', assetResult.error);
+    if (!assignmentResult.error) {
+      const localAssignments = reportAssignments.filter((assignment) => !isCloudId(assignment.id));
+      const cloudAssignments = (assignmentResult.data || []).map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter, assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
+      reportAssignments = [...localAssignments, ...cloudAssignments];
+    } else console.error('Could not refresh report training assignments', assignmentResult.error);
+    if (!resourceResult.error && resourceResult.data) {
+      const resourcesById = new Map(reportResources.map((resource) => [resource.id, resource]));
+      (resourceResult.data || []).forEach((resource) => resourcesById.set(resource.id, { id: resource.id, title: resource.title, category: resource.category }));
+      reportResources = [...resourcesById.values()];
+    } else console.error('Could not refresh report learning resources', resourceResult.error);
+    localStorage.setItem('qbel-development-training', JSON.stringify(reportAssignments));
+    localStorage.setItem('qbel-development-library', JSON.stringify(reportResources));
+  }
+  renderReports();
+}
+
+function reportDepartments() {
+  return [...new Set(employees.filter((employee) => !employee.deleted).map((employee) => employee.department).filter(Boolean))].sort();
+}
+
+function setReportOptions(select, options, allLabel, defaultValue) {
+  const previousValue = select.value;
+  const firstOption = allLabel ? `<option value="all">${escapeHtml(allLabel)}</option>` : '<option value="">Select an employee</option>';
+  select.innerHTML = firstOption + options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+  const fallback = options.some((option) => option.value === defaultValue) ? defaultValue : (allLabel ? 'all' : '');
+  select.value = options.some((option) => option.value === previousValue) ? previousValue : fallback;
+}
+
+function reportEvaluationRecords() {
+  const quarter = document.querySelector('#reportEvaluationQuarter').value;
+  const department = document.querySelector('#reportEvaluationDepartment').value;
+  return employees.filter((employee) => !employee.deleted && (department === 'all' || employee.department === department))
+    .flatMap((employee) => employeeEvaluations(employee).map((evaluation) => ({ employee, evaluation })))
+    .filter(({ evaluation }) => quarter === 'all' || quarterFromDate(evaluation.date)?.key === quarter)
+    .sort((first, second) => String(second.evaluation.date || '').localeCompare(String(first.evaluation.date || '')) || first.employee.name.localeCompare(second.employee.name));
+}
+
+function renderEvaluationReport() {
+  const records = reportEvaluationRecords();
+  const scores = records.map(({ evaluation }) => Number(evaluation.score) || 0);
+  const average = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
+  document.querySelector('#evaluationReportMetrics').innerHTML = `<div><span>Evaluations</span><strong>${records.length}</strong></div><div><span>Average score</span><strong>${average.toFixed(1)}<small>/100</small></strong></div><div><span>Departments</span><strong>${new Set(records.map(({ employee }) => employee.department)).size}</strong></div>`;
+  document.querySelector('#evaluationReportRows').innerHTML = records.map(({ employee, evaluation }) => {
+    const feedback = [evaluation.strength, evaluation.improvement, evaluation.development, evaluation.evaluatorComment].filter(Boolean).join(' | ') || 'No written feedback';
+    return `<tr><td>${escapeHtml(employee.name)}</td><td>${escapeHtml(employee.department)}</td><td>${escapeHtml(evaluation.date || 'Not recorded')}</td><td>${escapeHtml(evaluation.evaluator || employee.evaluator || employee.reportingTo || 'Not recorded')}</td><td><strong class="quarter-score">${Number(evaluation.score) || 0}<small>/100</small></strong></td><td>${escapeHtml(feedback)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty-state">No evaluation results match these filters.</td></tr>';
+}
+
+function selectedReportAssets() {
+  const department = document.querySelector('#reportAssetDepartment').value;
+  const employeeId = document.querySelector('#reportAssetEmployee').value;
+  const employeeByAssetId = new Map(employees.map((employee) => [employee.id, employee]));
+  return reportAssets.map((asset) => ({ asset, employee: employeeByAssetId.get(asset.employeeId) || employees.find((item) => item.name === asset.assignedTo || item.id === asset.assignedTo) }))
+    .filter(({ asset, employee }) => employee && !employee.deleted && (department === 'all' || employee.department === department) && (employeeId === 'all' || employee.id === employeeId) || !employee && department === 'all' && employeeId === 'all')
+    .sort((first, second) => String(first.employee?.name || '').localeCompare(String(second.employee?.name || '')));
+}
+
+function renderAssetReport() {
+  const records = selectedReportAssets();
+  const activeCount = records.filter(({ asset }) => !asset.dateReturned).length;
+  document.querySelector('#assetReportMetrics').innerHTML = `<div><span>Asset records</span><strong>${records.length}</strong></div><div><span>Currently assigned</span><strong>${activeCount}</strong></div><div><span>Employees covered</span><strong>${new Set(records.map(({ employee }) => employee?.id).filter(Boolean)).size}</strong></div>`;
+  document.querySelector('#assetReportRows').innerHTML = records.map(({ asset, employee }) => `<tr><td>${escapeHtml(employee?.name || asset.assignedTo || 'Unknown employee')}</td><td>${escapeHtml(employee?.department || 'Not recorded')}</td><td>${escapeHtml(asset.assetType || asset.name || asset.assetName || 'Company asset')}</td><td>${escapeHtml(asset.description || '')}</td><td>${escapeHtml(asset.serialNumber || asset.reference || 'Not recorded')}</td><td>${escapeHtml(asset.dateIssued || 'Not recorded')}</td><td>${escapeHtml(asset.dateReturned || 'Not returned')}</td><td>${escapeHtml(asset.handover?.name || 'Not attached')}</td></tr>`).join('') || '<tr><td colspan="8" class="empty-state">No asset records match these filters.</td></tr>';
+}
+
+function selectedReportEmployee() {
+  return employees.find((employee) => employee.id === document.querySelector('#reportEmployeeSelect').value && !employee.deleted);
+}
+
+function employeeReportRecords(employee) {
+  const evaluations = employeeEvaluations(employee).slice().sort((first, second) => String(second.date || '').localeCompare(String(first.date || '')));
+  const assignments = reportAssignments.filter((assignment) => assignment.employeeId === employee.id).slice().sort((first, second) => String(second.assignedDate || '').localeCompare(String(first.assignedDate || '')));
+  const resources = new Map(reportResources.map((resource) => [resource.id, resource]));
+  return { evaluations, assignments, resources };
+}
+
+function renderEmployeeReport() {
+  const employee = selectedReportEmployee();
+  const content = document.querySelector('#employeeReportContent');
+  const exportButton = document.querySelector('#exportEmployeeReport');
+  exportButton.disabled = !employee;
+  if (!employee) {
+    content.innerHTML = '<div class="report-empty">Choose an employee to generate their progress summary.</div>';
+    return;
+  }
+  const { evaluations, assignments, resources } = employeeReportRecords(employee);
+  const latestEvaluation = evaluations[0];
+  const previousEvaluation = evaluations[1];
+  const passedCount = assignments.filter((assignment) => assignment.resultStatus === 'Passed').length;
+  const completedCount = assignments.filter((assignment) => assignment.status === 'Completed').length;
+  const change = latestEvaluation && previousEvaluation ? Number(latestEvaluation.score) - Number(previousEvaluation.score) : null;
+  content.innerHTML = `
+    <div class="report-employee-heading"><div><strong>${escapeHtml(employee.name)}</strong><span>${escapeHtml(employee.department)} · ${escapeHtml(employee.role || employee.designation || 'Role not recorded')}</span></div><span>${escapeHtml(employee.reportingTo ? `Reports to ${employee.reportingTo}` : '')}</span></div>
+    <div class="report-metrics"><div><span>Latest evaluation</span><strong>${latestEvaluation ? `${Number(latestEvaluation.score) || 0}<small>/100</small>` : '—'}</strong><small>${escapeHtml(latestEvaluation?.date || 'No evaluation yet')}</small></div><div><span>Score change</span><strong class="${change === null ? 'neutral' : change >= 0 ? 'positive' : 'negative'}">${change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}`}</strong><small>${previousEvaluation ? `vs ${escapeHtml(previousEvaluation.date || 'previous evaluation')}` : 'Needs another evaluation'}</small></div><div><span>Learning passed</span><strong>${passedCount}<small>/${assignments.length}</small></strong><small>${completedCount} completed · ${assignments.length - completedCount} active</small></div></div>
+    <div class="report-subsection"><h4>Evaluation history</h4><div class="table-wrap"><table><thead><tr><th>Date</th><th>Score</th><th>Strengths</th><th>Development focus</th><th>Evaluator comments</th></tr></thead><tbody>${evaluations.map((evaluation) => `<tr><td>${escapeHtml(evaluation.date || 'Not recorded')}</td><td>${Number(evaluation.score) || 0}/100</td><td>${escapeHtml(evaluation.strength || '—')}</td><td>${escapeHtml(evaluation.development || evaluation.improvement || '—')}</td><td>${escapeHtml(evaluation.evaluatorComment || evaluation.managerComments || '—')}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">No evaluations recorded.</td></tr>'}</tbody></table></div></div>
+    <div class="report-subsection"><h4>Learning progress</h4><div class="table-wrap"><table><thead><tr><th>Training</th><th>Assigned</th><th>Due</th><th>Status</th><th>Result</th><th>Passed date</th><th>Skills</th></tr></thead><tbody>${assignments.map((assignment) => `<tr><td>${escapeHtml(resources.get(assignment.resourceId)?.title || 'Deleted course')}</td><td>${escapeHtml(assignment.assignedDate || 'Not recorded')}</td><td>${escapeHtml(assignment.dueDate || 'Not set')}</td><td>${escapeHtml(assignment.status || 'Assigned')}</td><td>${escapeHtml(assignment.resultStatus || 'Pending')}</td><td>${escapeHtml(assignment.passedDate || '—')}</td><td>${escapeHtml((assignment.skillsToDevelop || []).join(', ') || '—')}</td></tr>`).join('') || '<tr><td colspan="7" class="empty-state">No learning assignments recorded.</td></tr>'}</tbody></table></div></div>`;
+}
+
+function renderReports() {
+  const activeEmployees = employees.filter((employee) => !employee.deleted).sort((first, second) => first.name.localeCompare(second.name));
+  const departments = reportDepartments().map((department) => ({ value: department, label: department }));
+  setReportOptions(document.querySelector('#reportEvaluationDepartment'), departments, 'All departments');
+  setReportOptions(document.querySelector('#reportAssetDepartment'), departments, 'All departments');
+  const employeeOptions = activeEmployees.map((employee) => ({ value: employee.id, label: employee.name }));
+  setReportOptions(document.querySelector('#reportAssetEmployee'), employeeOptions, 'All employees');
+  setReportOptions(document.querySelector('#reportEmployeeSelect'), employeeOptions, null);
+  const quarterKeys = [...new Set(activeEmployees.flatMap((employee) => employeeEvaluations(employee).map((evaluation) => quarterFromDate(evaluation.date)?.key).filter(Boolean)))].sort().reverse();
+  const currentQuarter = quarterFromDate(new Date().toISOString().slice(0, 10))?.key;
+  const quarters = [...new Set([currentQuarter, ...quarterKeys])].filter(Boolean);
+  setReportOptions(document.querySelector('#reportEvaluationQuarter'), quarters.map((key) => ({ value: key, label: quarterFromDate(`${key.slice(0, 4)}-${(Number(key.slice(-1)) - 1) * 3 + 1}-01`)?.label || key })), 'All quarters', currentQuarter);
+  renderEvaluationReport();
+  renderAssetReport();
+  renderEmployeeReport();
+}
+
+function csvValue(value) {
+  const rawText = String(value ?? '');
+  const text = /^[\s]*[=+@-]/.test(rawText) ? `'${rawText}` : rawText;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadReportCsv(filename, headers, rows) {
+  const csv = [headers, ...rows].map((row) => row.map(csvValue).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function reportFilename(label) {
+  return `${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
+}
+
+document.querySelectorAll('[data-report-view]').forEach((button) => button.addEventListener('click', () => {
+  document.querySelectorAll('[data-report-view]').forEach((item) => {
+    const selected = item === button;
+    item.classList.toggle('active', selected);
+    item.setAttribute('aria-pressed', String(selected));
+  });
+  document.querySelectorAll('[data-report-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.reportPanel === button.dataset.reportView));
+}));
+document.querySelector('#reportEvaluationQuarter').addEventListener('change', renderEvaluationReport);
+document.querySelector('#reportEvaluationDepartment').addEventListener('change', renderEvaluationReport);
+document.querySelector('#reportAssetDepartment').addEventListener('change', renderAssetReport);
+document.querySelector('#reportAssetEmployee').addEventListener('change', renderAssetReport);
+document.querySelector('#reportEmployeeSelect').addEventListener('change', renderEmployeeReport);
+document.querySelector('#exportEvaluationReport').addEventListener('click', () => {
+  const rows = reportEvaluationRecords().map(({ employee, evaluation }) => [employee.name, employee.department, evaluation.date || '', evaluation.evaluator || employee.evaluator || employee.reportingTo || '', evaluation.score ?? '', evaluation.strength || '', evaluation.improvement || '', evaluation.development || '', evaluation.evaluatorComment || evaluation.managerComments || '']);
+  downloadReportCsv(reportFilename('evaluation-results'), ['Employee', 'Department', 'Evaluation date', 'Evaluator', 'Score', 'Strengths', 'Improvement', 'Development focus', 'Comments'], rows);
+});
+document.querySelector('#exportAssetReport').addEventListener('click', () => {
+  const rows = selectedReportAssets().map(({ asset, employee }) => [employee?.name || asset.assignedTo || 'Unknown employee', employee?.department || '', asset.assetType || asset.name || asset.assetName || 'Company asset', asset.description || '', asset.serialNumber || asset.reference || '', asset.dateIssued || '', asset.dateReturned || '', asset.handover?.name || '']);
+  downloadReportCsv(reportFilename('company-assets'), ['Employee', 'Department', 'Asset', 'Description', 'Serial / asset No.', 'Date issued', 'Date returned', 'Handover file'], rows);
+});
+document.querySelector('#exportEmployeeReport').addEventListener('click', () => {
+  const employee = selectedReportEmployee();
+  if (!employee) return;
+  const { evaluations, assignments, resources } = employeeReportRecords(employee);
+  const rows = [
+    ['Summary', employee.name, employee.department, evaluations[0]?.date || '', evaluations[0]?.score ?? '', '', '', '', '', `Learning assignments: ${assignments.length}; completed: ${assignments.filter((assignment) => assignment.status === 'Completed').length}; passed: ${assignments.filter((assignment) => assignment.resultStatus === 'Passed').length}`],
+    ...evaluations.map((evaluation) => ['Evaluation', employee.name, employee.department, evaluation.date || '', evaluation.score ?? '', '', '', '', '', [evaluation.strength, evaluation.improvement, evaluation.development, evaluation.evaluatorComment || evaluation.managerComments].filter(Boolean).join(' | ')]),
+    ...assignments.map((assignment) => ['Learning', employee.name, employee.department, assignment.assignedDate || '', '', assignment.status || 'Assigned', assignment.dueDate || '', assignment.resultStatus || 'Pending', assignment.passedDate || '', `${resources.get(assignment.resourceId)?.title || 'Deleted course'}${assignment.skillsToDevelop?.length ? ` | Skills: ${assignment.skillsToDevelop.join(', ')}` : ''}`])
+  ];
+  downloadReportCsv(reportFilename(`employee-${employee.name}`), ['Record type', 'Employee', 'Department', 'Date', 'Score', 'Status', 'Due date', 'Result', 'Passed date', 'Notes'], rows);
+});
+
 document.querySelectorAll('[data-module]:not(.qbel-nav-link)').forEach((button) => button.addEventListener('click', () => showModule(button.dataset.module)));
 document.querySelectorAll('.qbel-nav-link').forEach((link) => link.addEventListener('click', (event) => {
   event.preventDefault();

@@ -10,6 +10,9 @@
   <link rel="stylesheet" href="styles.css" />
   <style>
     .tracker-controls{display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(2,minmax(150px,1fr));gap:12px;margin:0 0 16px}
+    .development-hero-actions{display:flex;align-items:center;gap:16px}
+    .dc-sign-out-button{padding:9px 16px;border:1px solid rgba(255,255,255,.5);border-radius:8px;background:transparent;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+    .dc-sign-out-button:hover{background:rgba(255,255,255,.12)}
     .tracker-controls label{display:grid;gap:6px;color:var(--dc-muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
     .tracker-controls input,.tracker-controls select{min-height:36px;padding:0 10px;border:1px solid var(--dc-line);border-radius:6px;background:#fff;color:var(--dc-ink);font-size:12px;text-transform:none;letter-spacing:0}
     .development-app{font-family:'Inter',sans-serif}.development-app a{text-decoration:none;color:#464feb}.development-app tr th,.development-app tr td{border:1px solid #e6e6e6}.development-app tr th{background-color:#f5f5f5}
@@ -28,7 +31,10 @@
   <main class="development-app">
     <header class="development-hero">
       <div><span class="eyebrow">People development</span><h1>Development Centre</h1><p>Organize learning resources and follow every employee's training journey.</p></div>
-      <div class="hero-mark">DC</div>
+      <div class="development-hero-actions">
+        <button class="dc-sign-out-button" type="button" id="devCentreSignOutButton">Sign out</button>
+        <div class="hero-mark">DC</div>
+      </div>
     </header>
     <nav class="section-tabs" aria-label="Development Centre sections">
       <button class="section-tab active" data-view="dashboard">Dashboard</button>

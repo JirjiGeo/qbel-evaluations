@@ -61,34 +61,86 @@
     </div>
   </section>
 
-  <div class="development-shell" id="developmentShell" aria-hidden="true">
-    <header class="operations-header">
-      <button class="back-module-button" type="button" data-module="home">&#8592; Modules</button>
-      <div class="operations-brand"><img src="logo.png" alt="QBEL FM &amp; Technical Services" /><span>Development Centre</span></div>
-      <span class="operations-date">Learning workspace</span>
-    </header>
-    <iframe class="development-frame" src="development-centre/index.html" title="Development Centre module"></iframe>
+  <div class="app-shell module-hidden" id="developmentShell" aria-hidden="true">
+    <aside class="sidebar">
+      <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
+      <button class="module-switch-button" type="button" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted">&#8592;</span>All modules</button>
+      <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#employees" data-module="employees"><span class="nav-icon-badge coral">&#9678;</span>Employees</a>
+        <span class="nav-group-title">Evaluations</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="evaluations" data-tab="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
+        <span class="nav-group-title">Learning Center</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
+        <button class="sign-out-button" type="button" data-action="sign-out">Sign out</button>
+      </div>
+    </aside>
+    <main class="main-content development-main" id="developmentOverview">
+      <iframe class="development-frame" id="developmentFrame" src="development-centre/index.html" title="Development Centre module"></iframe>
+    </main>
   </div>
 
   <div class="app-shell module-hidden" id="employeesShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
-      <button class="module-switch-button" type="button" data-module="home">&#8592; All modules</button>
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="nav-item active" href="#employees">Employees</a>
+      <button class="module-switch-button" type="button" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted">&#8592;</span>All modules</button>
+      <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link active" href="#employees" data-module="employees"><span class="nav-icon-badge coral">&#9678;</span>Employees</a>
+        <span class="nav-group-title">Evaluations</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="evaluations" data-tab="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
+        <span class="nav-group-title">Learning Center</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
+        <button class="sign-out-button" type="button" data-action="sign-out">Sign out</button>
       </div>
     </aside>
     <main class="main-content" id="employeesOverview">
       <header class="topbar">
         <div><p class="eyebrow" id="employeesTodayDate"></p></div>
-        <div class="top-actions"><button class="primary-button" id="employeesAddButton" type="button">Add employee</button></div>
       </header>
+      <section class="employee-hero-banner">
+        <div><span class="section-kicker">People directory</span><h2>Your people,<br /><em>at a glance.</em></h2><p>Keep the employee directory current so learning, development and evaluations always line up.</p></div>
+        <div class="employee-hero-badge"><span>Directory</span><strong id="employeeHeroCount">0</strong><small>active people</small></div>
+      </section>
+      <section class="workforce-pulse">
+        <article class="pulse-card">
+          <div class="pulse-card-heading"><span class="section-kicker">Team composition</span><h3>Department mix</h3></div>
+          <div class="pulse-donut-wrap">
+            <div class="pulse-donut" id="departmentMixDonut"><div class="pulse-donut-center"><strong id="departmentMixCenterCount">0</strong><small>teams</small></div></div>
+            <div class="pulse-legend" id="departmentMixLegend"></div>
+          </div>
+        </article>
+        <article class="pulse-card">
+          <div class="pulse-card-heading"><span class="section-kicker">Line of reporting</span><h3>Manager coverage</h3></div>
+          <div class="pulse-ring-wrap">
+            <div class="pulse-ring" id="managerCoverageRing"><div class="pulse-ring-center"><strong id="managerCoveragePercent">0%</strong></div></div>
+            <p class="pulse-ring-copy" id="managerCoverageCopy">No data yet.</p>
+          </div>
+        </article>
+        <article class="pulse-card pulse-card-wide">
+          <div class="pulse-card-heading"><span class="section-kicker">Fresh arrivals</span><h3>New faces</h3></div>
+          <div class="pulse-newfaces-list" id="newFacesList"></div>
+        </article>
+      </section>
       <section class="workspace-section" id="employees">
-        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Designation</th><th>Joining date</th><th>Reporting to</th></tr></thead><tbody id="employeeRows"></tbody></table></div>
+        <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><select id="employeeDepartmentFilter" aria-label="Filter by department"><option value="all">All departments</option></select><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
+        <div class="employee-grid" id="employeeRows"></div>
       </section>
     </main>
   </div>
@@ -96,20 +148,30 @@
   <div class="app-shell" id="evaluationsShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
-      <button class="module-switch-button" type="button" data-module="home">&#8592; All modules</button>
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="nav-item active" href="#dashboard" data-tab="dashboard">Dashboard</a>
-        <a class="nav-item" href="#evaluations" data-tab="evaluations">Evaluations &amp; scoring</a>
+      <button class="module-switch-button" type="button" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted">&#8592;</span>All modules</button>
+      <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#employees" data-module="employees"><span class="nav-icon-badge coral">&#9678;</span>Employees</a>
+        <span class="nav-group-title">Evaluations</span>
+        <a class="nav-item nav-subitem qbel-nav-link active" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="evaluations" data-tab="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
+        <span class="nav-group-title">Learning Center</span>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
       </nav>
       <div class="sidebar-bottom">
         <div class="profile-row"><div class="avatar avatar-indigo">GM</div><div><strong>George Mansour</strong><small>Administrator</small></div><span class="more">...</span></div>
+        <button class="sign-out-button" type="button" data-action="sign-out">Sign out</button>
       </div>
     </aside>
 
     <main class="main-content" id="overview">
       <header class="topbar">
         <div><p class="eyebrow" id="todayDate"></p></div>
-        <div class="top-actions"><button class="primary-button" id="newEvaluationButton">New evaluation</button></div>
+        <div class="top-actions"><button class="primary-button evaluation-cta" id="newEvaluationButton"><span class="evaluation-cta-icon">+</span>New evaluation</button></div>
       </header>
 
       <div class="tab-panel active" id="dashboard" data-tab-panel="dashboard">
@@ -134,6 +196,7 @@
           <div class="quarter-controls"><label><span id="currentQuarterControlLabel">Current quarter</span><select id="progressCurrentQuarter" aria-label="Current quarter"></select></label><span class="quarter-versus">vs</span><label><span id="previousQuarterControlLabel">Previous quarter</span><select id="progressPreviousQuarter" aria-label="Previous quarter"></select></label></div>
         </div>
         <div class="quarter-summary" id="quarterSummary"></div>
+        <section class="performance-signals" id="performanceSignals"></section>
         <section class="bottom-grid" id="departments">
           <div class="department-panel"><div class="section-heading compact"><div><span class="section-kicker">Across the company</span><h2>Department evaluation progress</h2></div></div><div class="department-list"></div></div>
           <div class="insight-panel"><div class="insight-graphic"><span class="graphic-line"></span><span class="graphic-line short"></span><span class="graphic-dot"></span></div><span class="section-kicker">A little insight</span><h2>Feedback is a<br /><em>growth habit.</em></h2><p>Teams that complete reviews on time show stronger follow-through on their goals.</p></div>
@@ -149,6 +212,31 @@
         <div class="section-heading"><div><span class="section-kicker">Keep things moving</span><h2>Recent evaluations</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="searchInput" type="search" placeholder="Search employees" /></div><select id="departmentFilter" aria-label="Filter by department"><option value="all">All departments</option><option value="HR">HR</option><option value="Operations">Operations</option><option value="Procurement">Procurement</option><option value="Engineering">Engineering</option><option value="IT">IT</option></select><button class="outline-button" id="viewAllButton">View all <span>→</span></button></div></div>
         <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluator</th><th>Score</th><th>Status</th><th></th></tr></thead><tbody id="evaluationRows"></tbody></table></div>
       </section>
+      </div>
+
+      <div class="tab-panel" id="reportsTab" data-tab-panel="reports">
+        <section class="workspace-section reports-workspace" id="reports">
+          <div class="section-heading"><div><span class="section-kicker">Company insights</span><h2>Reports</h2><p class="section-description">Review quarterly performance, assigned assets, and individual development progress.</p></div></div>
+          <div class="report-switcher" role="tablist" aria-label="Report type">
+            <button type="button" class="report-switch active" data-report-view="evaluations" aria-pressed="true">Evaluation results</button>
+            <button type="button" class="report-switch" data-report-view="assets" aria-pressed="false">Company assets</button>
+            <button type="button" class="report-switch" data-report-view="employee" aria-pressed="false">Employee progress</button>
+          </div>
+          <section class="report-panel active" data-report-panel="evaluations">
+            <div class="report-heading"><div><span class="section-kicker">Evaluation results</span><h3>Quarter and department</h3></div><div class="report-controls"><label>Quarter<select id="reportEvaluationQuarter"></select></label><label>Department<select id="reportEvaluationDepartment"><option value="all">All departments</option></select></label><button type="button" class="primary-button" id="exportEvaluationReport">Export CSV</button></div></div>
+            <div class="report-metrics" id="evaluationReportMetrics"></div>
+            <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluation date</th><th>Evaluator</th><th>Score</th><th>Feedback summary</th></tr></thead><tbody id="evaluationReportRows"></tbody></table></div>
+          </section>
+          <section class="report-panel" data-report-panel="assets">
+            <div class="report-heading"><div><span class="section-kicker">Asset register</span><h3>Assigned company assets</h3></div><div class="report-controls"><label>Department<select id="reportAssetDepartment"><option value="all">All departments</option></select></label><label>Employee<select id="reportAssetEmployee"><option value="all">All employees</option></select></label><button type="button" class="primary-button" id="exportAssetReport">Export CSV</button></div></div>
+            <div class="report-metrics" id="assetReportMetrics"></div>
+            <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Asset</th><th>Description</th><th>Serial / asset No.</th><th>Issued</th><th>Returned</th><th>Handover file</th></tr></thead><tbody id="assetReportRows"></tbody></table></div>
+          </section>
+          <section class="report-panel" data-report-panel="employee">
+            <div class="report-heading"><div><span class="section-kicker">Individual summary</span><h3>Evaluation and learning progress</h3></div><div class="report-controls"><label>Employee<select id="reportEmployeeSelect"><option value="">Select an employee</option></select></label><button type="button" class="primary-button" id="exportEmployeeReport" disabled>Export CSV</button></div></div>
+            <div id="employeeReportContent"><div class="report-empty">Choose an employee to generate their progress summary.</div></div>
+          </section>
+        </section>
       </div>
     </main>
   </div>

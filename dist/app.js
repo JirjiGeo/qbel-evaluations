@@ -228,6 +228,9 @@ let employeeDocumentPreviewIndex = null;
 let employeeDocumentPreviewUrl = null;
 let evaluationModalMode = 'new';
 let editingEvaluationIndex = null;
+let reportAssets = [];
+let reportAssignments = [];
+let reportResources = [];
 
 const deletedEvaluationIds = new Set(JSON.parse(localStorage.getItem('northstar-deleted-evaluations') || '[]'));
 const cloudEmployeeIds = new Set();
@@ -235,6 +238,7 @@ const cloudEmployeeIds = new Set();
 const rows = document.querySelector('#evaluationRows');
 const employeeRows = document.querySelector('#employeeRows');
 const employeeSearchInput = document.querySelector('#employeeSearchInput');
+const employeeDepartmentFilter = document.querySelector('#employeeDepartmentFilter');
 const importEmployeesButton = document.querySelector('#importEmployeesButton');
 const employeeCsvInput = document.querySelector('#employeeCsvInput');
 const employeeModal = document.querySelector('#employeeModal');
@@ -260,6 +264,7 @@ const toast = document.querySelector('#toast');
 const progressCurrentQuarter = document.querySelector('#progressCurrentQuarter');
 const progressPreviousQuarter = document.querySelector('#progressPreviousQuarter');
 const quarterSummary = document.querySelector('#quarterSummary');
+const performanceSignals = document.querySelector('#performanceSignals');
 const quarterProgressRows = document.querySelector('#quarterProgressRows');
 const departmentMovementChart = document.querySelector('#departmentMovementChart');
 const previousMovementLabel = document.querySelector('#previousMovementLabel');
@@ -279,13 +284,46 @@ function showModule(moduleName) {
   moduleHome?.classList.toggle('active', isHome);
   evaluationsShell?.classList.toggle('module-hidden', !isEvaluations);
   employeesShell?.classList.toggle('module-hidden', !isEmployees);
-  developmentShell?.classList.toggle('active', isDevelopment);
+  developmentShell?.classList.toggle('module-hidden', !isDevelopment);
   moduleHome?.setAttribute('aria-hidden', String(!isHome));
   evaluationsShell?.setAttribute('aria-hidden', String(!isEvaluations));
   employeesShell?.setAttribute('aria-hidden', String(!isEmployees));
   developmentShell?.setAttribute('aria-hidden', String(!isDevelopment));
   if (isEvaluations) switchTab('dashboard');
+  else syncSidebarNav(moduleName, null);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function syncSidebarNav(moduleName, tabName) {
+  document.querySelectorAll('.qbel-nav-link[data-module="employees"]').forEach((link) => link.classList.toggle('active', moduleName === 'employees'));
+  document.querySelectorAll('.qbel-nav-link[data-module="evaluations"][data-tab]').forEach((link) => link.classList.toggle('active', moduleName === 'evaluations' && link.dataset.tab === tabName));
+}
+
+function withDevelopmentFrame(callback, attempt = 0) {
+  const frame = document.querySelector('#developmentFrame');
+  const frameWindow = frame?.contentWindow;
+  if (frameWindow && typeof frameWindow.switchView === 'function' && frameWindow.document?.querySelector('.section-tab')) {
+    callback(frameWindow);
+    return;
+  }
+  if (attempt < 40) window.setTimeout(() => withDevelopmentFrame(callback, attempt + 1), 150);
+}
+
+function openDevelopmentView(view) {
+  showModule('development');
+  withDevelopmentFrame((frameWindow) => frameWindow.switchView(view));
+}
+
+function openEmployeeLearningPortal(employee) {
+  showModule('development');
+  withDevelopmentFrame((frameWindow) => {
+    frameWindow.switchView('learning');
+    const learningSelect = frameWindow.document.querySelector('#learningEmployeeSelect');
+    if (learningSelect) {
+      learningSelect.value = employee.id;
+      learningSelect.dispatchEvent(new Event('change'));
+    }
+  });
 }
 
 function avatarMarkup(employee) {
@@ -372,6 +410,7 @@ function renderQuarterlyProgress() {
     progressCurrentQuarter.innerHTML = '<option>No quarters yet</option>';
     progressPreviousQuarter.innerHTML = '<option>No quarters yet</option>';
     quarterSummary.innerHTML = '<div class="quarter-empty">Quarterly progress will appear after evaluations are recorded.</div>';
+    if (performanceSignals) performanceSignals.innerHTML = '';
     quarterProgressRows.innerHTML = '<tr><td colspan="6" class="empty-state">No evaluation history yet.</td></tr>';
     if (departmentMovementChart) departmentMovementChart.innerHTML = '<div class="quarter-empty">Department movement will appear after two quarters are available.</div>';
     return;
@@ -402,8 +441,21 @@ function renderQuarterlyProgress() {
   const previousAverage = previousScores.length ? previousScores.reduce((sum, score) => sum + score, 0) / previousScores.length : 0;
   const changes = rows.filter((row) => row.change !== null);
   const improvedCount = changes.filter((row) => row.change > 0).length;
+  const stableRows = changes.filter((row) => row.change === 0);
+  const attentionRows = changes.filter((row) => row.change < 0).sort((first, second) => first.change - second.change);
   const averageChange = currentScores.length && previousScores.length ? currentAverage - previousAverage : null;
   quarterSummary.innerHTML = `<div><span>${escapeHtml(currentQuarter.label)} average</span><strong>${currentAverage.toFixed(1)}<small>/100</small></strong><small>${currentScores.length} evaluated</small></div><div><span>Average change</span><strong class="${averageChange === null ? 'neutral' : averageChange >= 0 ? 'positive' : 'negative'}">${averageChange === null ? '—' : `${averageChange >= 0 ? '+' : ''}${averageChange.toFixed(1)}`}<small>${averageChange === null ? 'Need two quarters' : 'points'}</small></strong><small>${improvedCount} staff improved</small></div><div><span>Comparison coverage</span><strong>${rows.filter((row) => row.currentScore !== null && row.previousScore !== null).length}<small>/${activeEmployees.length}</small></strong><small>${escapeHtml(previousQuarter?.label || 'Previous quarter')} comparison</small></div>`;
+  if (performanceSignals) {
+    performanceSignals.innerHTML = `
+      <div class="signal-panel signal-attention">
+        <div class="signal-heading"><span class="section-kicker">Needs attention</span><h3>Declined vs ${escapeHtml(previousQuarter?.label || 'previous quarter')}</h3></div>
+        ${attentionRows.length ? attentionRows.map(({ employee, currentScore, change }) => `<div class="signal-row"><div class="employee-cell">${avatarMarkup(employee)}<div>${escapeHtml(employee.name)}<small>${escapeHtml(employee.department)}</small></div></div><strong class="quarter-change negative">${change.toFixed(1)}<small>now ${currentScore}/100</small></strong></div>`).join('') : '<div class="signal-empty">No one declined this quarter. Nice work.</div>'}
+      </div>
+      <div class="signal-panel signal-stable">
+        <div class="signal-heading"><span class="section-kicker">Holding steady</span><h3>Stable vs ${escapeHtml(previousQuarter?.label || 'previous quarter')}</h3></div>
+        ${stableRows.length ? stableRows.map(({ employee, currentScore }) => `<div class="signal-row"><div class="employee-cell">${avatarMarkup(employee)}<div>${escapeHtml(employee.name)}<small>${escapeHtml(employee.department)}</small></div></div><strong class="quarter-change neutral">0.0<small>now ${currentScore}/100</small></strong></div>`).join('') : '<div class="signal-empty">No unchanged scores this quarter.</div>'}
+      </div>`;
+  }
   document.querySelector('#currentQuarterHeading').textContent = currentQuarter.label;
   document.querySelector('#previousQuarterHeading').textContent = previousQuarter?.label || 'Previous';
   quarterProgressRows.innerHTML = rows.map(({ employee, currentScore, previousScore, change }) => {
@@ -501,13 +553,14 @@ function updateDashboardMetrics() {
   const pendingCount = Math.max(activeEmployees.length - completedEmployees.length, 0);
   const averageScore = completedEmployees.length ? completedEmployees.reduce((sum, employee) => sum + Number(latestEvaluation(employee)?.score ?? employee.score ?? 0), 0) / completedEmployees.length : 0;
   const departmentNames = [...new Set(activeEmployees.map((employee) => employee.department))];
-  const statValues = document.querySelectorAll('.stats-grid .stat-card strong');
-  if (statValues.length >= 4) {
-    statValues[0].textContent = activeEmployees.length;
-    statValues[1].innerHTML = `${averageScore.toFixed(1)}<small>/100</small>`;
-    statValues[2].textContent = pendingCount;
-    statValues[3].textContent = departmentNames.length;
-  }
+  const totalEmployeesStat = document.querySelector('#totalEmployeesStat');
+  const averageScoreStat = document.querySelector('#averageScoreStat');
+  const pendingReviewsStat = document.querySelector('#pendingReviewsStat');
+  const departmentsStat = document.querySelector('#departmentsStat');
+  if (totalEmployeesStat) totalEmployeesStat.textContent = activeEmployees.length;
+  if (averageScoreStat) averageScoreStat.textContent = averageScore.toFixed(1);
+  if (pendingReviewsStat) pendingReviewsStat.textContent = pendingCount;
+  if (departmentsStat) departmentsStat.textContent = departmentNames.length;
   const cycleNumber = document.querySelector('.cycle-number strong');
   const cycleTotal = document.querySelector('.cycle-number span');
   const progressBar = document.querySelector('.progress-track.large span');
@@ -537,20 +590,100 @@ function updateDashboardMetrics() {
   renderQuarterlyProgress();
 }
 
+function renderEmployeeDepartmentFilterOptions() {
+  if (!employeeDepartmentFilter) return;
+  const current = employeeDepartmentFilter.value || 'all';
+  const departments = [...new Set(employees.filter((employee) => !employee.deleted).map((employee) => employee.department).filter(Boolean))].sort();
+  employeeDepartmentFilter.innerHTML = ['<option value="all">All departments</option>', ...departments.map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)].join('');
+  employeeDepartmentFilter.value = departments.includes(current) || current === 'all' ? current : 'all';
+}
+
+const workforcePalette = ['var(--coral)', 'var(--blue)', 'var(--mint)', 'var(--purple)', 'var(--yellow)', 'var(--green)', 'var(--orange)'];
+
+function renderEmployeeStats(activeEmployees) {
+  const heroCount = document.querySelector('#employeeHeroCount');
+  if (heroCount) heroCount.textContent = activeEmployees.length;
+  renderDepartmentMixPulse(activeEmployees);
+  renderManagerCoveragePulse(activeEmployees);
+  renderNewFacesPulse(activeEmployees);
+}
+
+function renderDepartmentMixPulse(activeEmployees) {
+  const donut = document.querySelector('#departmentMixDonut');
+  const centerCount = document.querySelector('#departmentMixCenterCount');
+  const legend = document.querySelector('#departmentMixLegend');
+  if (!donut) return;
+  const counts = new Map();
+  activeEmployees.forEach((employee) => {
+    const department = employee.department || 'Unassigned';
+    counts.set(department, (counts.get(department) || 0) + 1);
+  });
+  const entries = [...counts.entries()].sort((first, second) => second[1] - first[1]);
+  centerCount.textContent = entries.length;
+  if (!entries.length || !activeEmployees.length) {
+    donut.style.background = '#edf2ee';
+    legend.innerHTML = '<div class="pulse-empty">No employees yet to chart.</div>';
+    return;
+  }
+  let cursor = 0;
+  const stops = entries.map(([department, count], index) => {
+    const color = workforcePalette[index % workforcePalette.length];
+    const share = (count / activeEmployees.length) * 100;
+    const stop = `${color} ${cursor}% ${cursor + share}%`;
+    cursor += share;
+    return stop;
+  });
+  donut.style.background = `conic-gradient(${stops.join(',')})`;
+  legend.innerHTML = entries.map(([department, count], index) => `<div class="pulse-legend-item"><span class="pulse-legend-dot" style="background:${workforcePalette[index % workforcePalette.length]}"></span>${escapeHtml(department)}<b>${count}</b></div>`).join('');
+}
+
+function renderManagerCoveragePulse(activeEmployees) {
+  const ring = document.querySelector('#managerCoverageRing');
+  const percentLabel = document.querySelector('#managerCoveragePercent');
+  const copy = document.querySelector('#managerCoverageCopy');
+  if (!ring) return;
+  const withManager = activeEmployees.filter((employee) => employee.reportingTo).length;
+  const percent = activeEmployees.length ? Math.round((withManager / activeEmployees.length) * 100) : 0;
+  ring.style.background = `conic-gradient(var(--brand) 0% ${percent}%, #edf2ee ${percent}% 100%)`;
+  percentLabel.textContent = `${percent}%`;
+  copy.textContent = `${withManager} of ${activeEmployees.length} people have a reporting line on file.`;
+}
+
+function renderNewFacesPulse(activeEmployees) {
+  const list = document.querySelector('#newFacesList');
+  if (!list) return;
+  const joiners = activeEmployees
+    .filter((employee) => employee.joiningDate && !Number.isNaN(new Date(employee.joiningDate).getTime()))
+    .sort((first, second) => new Date(second.joiningDate) - new Date(first.joiningDate))
+    .slice(0, 3);
+  list.innerHTML = joiners.length
+    ? joiners.map((employee) => `<div class="pulse-newface-row">${avatarMarkup(employee)}<div><strong>${escapeHtml(employee.name)}</strong><small>${escapeHtml(employee.department || 'Unassigned')} · Joined ${escapeHtml(employee.joiningDate)}</small></div></div>`).join('')
+    : '<div class="pulse-empty">No joining dates recorded yet.</div>';
+}
+
+
 function renderEmployeeRows() {
   const query = employeeSearchInput.value.toLowerCase().trim();
-  const filtered = employees.filter((employee) => !employee.deleted).filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
-  const employeeHeader = document.querySelector('#employees thead tr');
-  if (employeeHeader && !employeeHeader.querySelector('.employee-actions-header')) employeeHeader.insertAdjacentHTML('beforeend', '<th class="employee-actions-header">Actions</th>');
+  const selectedDepartment = employeeDepartmentFilter?.value || 'all';
+  const activeEmployees = employees.filter((employee) => !employee.deleted);
+  renderEmployeeDepartmentFilterOptions();
+  renderEmployeeStats(activeEmployees);
+  const filtered = activeEmployees
+    .filter((employee) => selectedDepartment === 'all' || employee.department === selectedDepartment)
+    .filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
   employeeRows.innerHTML = filtered.map((employee) => `
-    <tr>
-      <td><div class="employee-cell">${avatarMarkup(employee)}<div>${employee.name}<small>${employee.id === 'maya' ? 'Employee record' : 'Added manually'}</small></div></div></td>
-      <td>${employee.department}</td>
-      <td>${employee.role || employee.designation || 'Not assigned'}</td>
-      <td>${employee.joiningDate || 'Not provided'}</td>
-      <td>${employee.reportingTo || 'Not provided'}</td>
-      <td><div class="employee-row-actions"><button type="button" data-employee-action="edit" data-employee-id="${employee.id}">Edit</button><button type="button" data-employee-action="scores" data-employee-id="${employee.id}">Open profile</button><button type="button" data-employee-action="delete" data-employee-id="${employee.id}">Delete</button></div></td>
-    </tr>`).join('') || '<tr><td colspan="6" class="empty-state">No employees match this search.</td></tr>';
+    <article class="employee-card">
+      <div class="employee-card-top">
+        ${avatarMarkup(employee)}
+        <div class="employee-card-identity"><strong>${escapeHtml(employee.name)}</strong><small>${escapeHtml(employee.role || employee.designation || 'Not assigned')}</small></div>
+      </div>
+      <span class="employee-card-department">${escapeHtml(employee.department || 'Unassigned')}</span>
+      <div class="employee-card-meta">
+        <div><span>Joining date</span><strong>${escapeHtml(employee.joiningDate || 'Not provided')}</strong></div>
+        <div><span>Reporting to</span><strong>${escapeHtml(employee.reportingTo || 'Not provided')}</strong></div>
+      </div>
+      <div class="employee-card-actions"><button type="button" data-employee-action="scores" data-employee-id="${employee.id}">Open profile</button><button type="button" data-employee-action="edit" data-employee-id="${employee.id}">Edit</button><button type="button" class="employee-card-delete" data-employee-action="delete" data-employee-id="${employee.id}">Delete</button></div>
+    </article>`).join('') || '<div class="empty-state employee-grid-empty">No employees match this search.</div>';
 }
 
 function employeeById(id) {
@@ -713,6 +846,7 @@ async function loadCloudData() {
   renderEmployeeRows();
   renderRows();
   updateEmployeeOptions();
+  if (document.querySelector('#reportsTab')?.classList.contains('active')) renderReports();
 }
 
 async function syncCloudData() {
@@ -1050,7 +1184,7 @@ function updateEvaluationMetadata(employee) {
 }
 
 function updateEmployeeOptions() {
-  employeeSelect.innerHTML = employees.filter((employee) => !employee.deleted).map((employee) => `<option value="${employee.id}">${employee.name} · ${employee.role || employee.department}</option>`).join('');
+  employeeSelect.innerHTML = employees.filter((employee) => !employee.deleted).sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), undefined, { sensitivity: 'base', numeric: true })).map((employee) => `<option value="${employee.id}">${employee.name} · ${employee.role || employee.department}</option>`).join('');
 }
 
 function updateDesignationOptions() {
@@ -1202,6 +1336,7 @@ document.querySelector('#closeEmployeeModal').addEventListener('click', closeEmp
 document.querySelector('#cancelEmployeeModal').addEventListener('click', closeEmployeeModal);
 employeeModal.addEventListener('click', (event) => { if (event.target === employeeModal) closeEmployeeModal(); });
 employeeSearchInput.addEventListener('input', renderEmployeeRows);
+employeeDepartmentFilter?.addEventListener('change', renderEmployeeRows);
 document.querySelector('#employeeDepartmentInput').addEventListener('change', updateDesignationOptions);
 employeeModal.addEventListener('change', async (event) => {
   if (event.target.id !== 'employeeDocumentsInput') return;
@@ -1283,7 +1418,7 @@ function showEmployeeScores(employee) {
     modalElement = document.createElement('div');
     modalElement.id = 'scoreHistoryModal';
     modalElement.className = 'modal-backdrop open';
-    modalElement.innerHTML = '<section class="evaluation-modal score-history-modal" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle"><button class="close-button" id="closeScoreHistory" aria-label="Close employee profile">×</button><span class="section-kicker">Employee profile</span><h2 id="scoreHistoryTitle"></h2><p class="score-history-subtitle"></p><div class="employee-profile-tabs"><button type="button" class="employee-profile-tab active" data-profile-tab="evaluations">Evaluations</button><button type="button" class="employee-profile-tab" data-profile-tab="learning">Learning journey</button><button type="button" class="employee-profile-tab" data-profile-tab="assets">Assigned assets</button><button type="button" class="employee-profile-tab" data-profile-tab="documents">Documents</button></div><div class="employee-profile-panel active" data-profile-panel="evaluations"><div class="score-history-list"></div></div><div class="employee-profile-panel" data-profile-panel="learning"><div class="employee-learning-profile"></div></div><div class="employee-profile-panel" data-profile-panel="assets"><div class="employee-assets-profile"></div></div><div class="employee-profile-panel" data-profile-panel="documents"><div class="employee-documents-profile"></div></div></section>';
+    modalElement.innerHTML = '<section class="evaluation-modal score-history-modal" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle"><button class="close-button" id="closeScoreHistory" aria-label="Close employee profile">×</button><span class="section-kicker">Employee profile</span><h2 id="scoreHistoryTitle"></h2><p class="score-history-subtitle"></p><div class="employee-profile-tabs"><button type="button" class="employee-profile-tab active" data-profile-tab="evaluations">Evaluations</button><button type="button" class="employee-profile-tab" data-profile-tab="learning">Learning journey</button><button type="button" class="employee-profile-tab" data-profile-tab="assets">Assigned assets</button><button type="button" class="employee-profile-tab" data-profile-tab="documents">Documents</button></div><div class="employee-profile-panel active" data-profile-panel="evaluations"><div class="score-history-list"></div></div><div class="employee-profile-panel" data-profile-panel="learning"><div class="profile-panel-header"><span class="profile-panel-title">Assigned training</span><button type="button" class="profile-open-portal-button" data-open-learning-portal>Open learning path in Development Centre →</button></div><div class="employee-learning-profile"></div></div><div class="employee-profile-panel" data-profile-panel="assets"><div class="employee-assets-profile"></div></div><div class="employee-profile-panel" data-profile-panel="documents"><div class="employee-documents-profile"></div></div></section>';
     document.body.appendChild(modalElement);
     const style = document.createElement('style');
     style.textContent = '.score-history-modal{width:min(920px,100%);max-height:92vh;overflow:auto}.score-history-subtitle{color:var(--muted);font-size:12px}.score-history-list{display:grid;gap:10px;margin-top:20px}.score-history-row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.score-history-row strong{font:600 18px "Space Grotesk";color:var(--brand)}.score-history-row small{display:block;color:var(--muted);margin-top:4px}.score-history-score{font:700 22px "Space Grotesk";color:var(--brand);white-space:nowrap}.score-history-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.score-history-actions button{border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--brand);font-size:10px;font-weight:700;padding:7px 9px}.score-history-actions button:hover{background:#f3f7f4}.score-history-actions button[data-history-action="delete"]{color:#b85c52}.score-history-empty{padding:20px;text-align:center;background:#fafafa;color:var(--muted)}@media(max-width:760px){.score-history-row{grid-template-columns:1fr}.score-history-actions{justify-content:flex-start}}';
@@ -1310,6 +1445,14 @@ function showEmployeeScores(employee) {
       const previewUrl = createPdfPreviewUrl(employeeDocument.dataUrl);
       documentPanel.querySelector('.profile-document-preview')?.remove();
       documentPanel.insertAdjacentHTML('beforeend', `<div class="profile-document-preview"><div><strong>${escapeHtml(employeeDocument.name)}</strong><button type="button" class="document-preview-close" data-close-profile-document>Close</button></div><iframe class="profile-document-pdf" title="${escapeHtml(employeeDocument.name)}" src="${previewUrl}"></iframe></div>`);
+    });
+    modalElement.addEventListener('click', (event) => {
+      const openPortalButton = event.target.closest('[data-open-learning-portal]');
+      if (!openPortalButton) return;
+      const profileEmployee = modalElement._profileEmployee;
+      if (!profileEmployee) return;
+      modalElement.remove();
+      openEmployeeLearningPortal(profileEmployee);
     });
     modalElement.addEventListener('click', async (event) => {
       const assetButton = event.target.closest('[data-asset-action]');
@@ -1503,13 +1646,206 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
 });
 function switchTab(tabName) {
   document.querySelectorAll('[data-tab-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.tabPanel === tabName));
-  document.querySelectorAll('.primary-nav .nav-item').forEach((item) => item.classList.toggle('active', item.dataset.tab === tabName));
+  syncSidebarNav('evaluations', tabName);
+  if (tabName === 'reports') void refreshReportData();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-document.querySelectorAll('[data-module]').forEach((button) => button.addEventListener('click', () => showModule(button.dataset.module)));
-document.querySelectorAll('.primary-nav [data-tab]').forEach((link) => link.addEventListener('click', (event) => {
+
+function readReportStorage(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (error) { return []; }
+}
+
+async function refreshReportData() {
+  reportAssets = readReportStorage('qbel-operations-assets');
+  reportAssignments = readReportStorage('qbel-development-training');
+  reportResources = readReportStorage('qbel-development-library');
+  if (window.supabaseClient) {
+    const [assetResult, assignmentResult, resourceResult] = await Promise.all([
+      window.supabaseClient.from('employee_assets').select('id, employee_id, asset_type, description, serial_asset_no, date_issued, date_returned, handover_form_name').order('created_at', { ascending: true }),
+      window.supabaseClient.from('training_assignments').select('id, employee_id, resource_id, quarter, assigned_date, due_date, status, completed_date, result_status, result_source, passed_date, training_valid_until, skills_to_develop').order('created_at', { ascending: true }),
+      window.supabaseClient.from('development_resources').select('id, title, category')
+    ]);
+    if (!assetResult.error) {
+      const localAssets = reportAssets.filter((asset) => !isCloudId(asset.id));
+      const cloudAssets = (assetResult.data || []).map((asset) => ({ id: asset.id, employeeId: asset.employee_id, assetType: asset.asset_type, description: asset.description, serialNumber: asset.serial_asset_no, dateIssued: asset.date_issued, dateReturned: asset.date_returned || '', handover: asset.handover_form_name ? { name: asset.handover_form_name, dataUrl: asset.handover_form_data } : null }));
+      reportAssets = [...localAssets, ...cloudAssets];
+    } else console.error('Could not refresh report assets', assetResult.error);
+    if (!assignmentResult.error) {
+      const localAssignments = reportAssignments.filter((assignment) => !isCloudId(assignment.id));
+      const cloudAssignments = (assignmentResult.data || []).map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter, assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
+      reportAssignments = [...localAssignments, ...cloudAssignments];
+    } else console.error('Could not refresh report training assignments', assignmentResult.error);
+    if (!resourceResult.error && resourceResult.data) {
+      const resourcesById = new Map(reportResources.map((resource) => [resource.id, resource]));
+      (resourceResult.data || []).forEach((resource) => resourcesById.set(resource.id, { id: resource.id, title: resource.title, category: resource.category }));
+      reportResources = [...resourcesById.values()];
+    } else console.error('Could not refresh report learning resources', resourceResult.error);
+    localStorage.setItem('qbel-development-training', JSON.stringify(reportAssignments));
+    localStorage.setItem('qbel-development-library', JSON.stringify(reportResources));
+  }
+  renderReports();
+}
+
+function reportDepartments() {
+  return [...new Set(employees.filter((employee) => !employee.deleted).map((employee) => employee.department).filter(Boolean))].sort();
+}
+
+function setReportOptions(select, options, allLabel, defaultValue) {
+  const previousValue = select.value;
+  const firstOption = allLabel ? `<option value="all">${escapeHtml(allLabel)}</option>` : '<option value="">Select an employee</option>';
+  select.innerHTML = firstOption + options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+  const fallback = options.some((option) => option.value === defaultValue) ? defaultValue : (allLabel ? 'all' : '');
+  select.value = options.some((option) => option.value === previousValue) ? previousValue : fallback;
+}
+
+function reportEvaluationRecords() {
+  const quarter = document.querySelector('#reportEvaluationQuarter').value;
+  const department = document.querySelector('#reportEvaluationDepartment').value;
+  return employees.filter((employee) => !employee.deleted && (department === 'all' || employee.department === department))
+    .flatMap((employee) => employeeEvaluations(employee).map((evaluation) => ({ employee, evaluation })))
+    .filter(({ evaluation }) => quarter === 'all' || quarterFromDate(evaluation.date)?.key === quarter)
+    .sort((first, second) => String(second.evaluation.date || '').localeCompare(String(first.evaluation.date || '')) || first.employee.name.localeCompare(second.employee.name));
+}
+
+function renderEvaluationReport() {
+  const records = reportEvaluationRecords();
+  const scores = records.map(({ evaluation }) => Number(evaluation.score) || 0);
+  const average = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
+  document.querySelector('#evaluationReportMetrics').innerHTML = `<div><span>Evaluations</span><strong>${records.length}</strong></div><div><span>Average score</span><strong>${average.toFixed(1)}<small>/100</small></strong></div><div><span>Departments</span><strong>${new Set(records.map(({ employee }) => employee.department)).size}</strong></div>`;
+  document.querySelector('#evaluationReportRows').innerHTML = records.map(({ employee, evaluation }) => {
+    const feedback = [evaluation.strength, evaluation.improvement, evaluation.development, evaluation.evaluatorComment].filter(Boolean).join(' | ') || 'No written feedback';
+    return `<tr><td>${escapeHtml(employee.name)}</td><td>${escapeHtml(employee.department)}</td><td>${escapeHtml(evaluation.date || 'Not recorded')}</td><td>${escapeHtml(evaluation.evaluator || employee.evaluator || employee.reportingTo || 'Not recorded')}</td><td><strong class="quarter-score">${Number(evaluation.score) || 0}<small>/100</small></strong></td><td>${escapeHtml(feedback)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty-state">No evaluation results match these filters.</td></tr>';
+}
+
+function selectedReportAssets() {
+  const department = document.querySelector('#reportAssetDepartment').value;
+  const employeeId = document.querySelector('#reportAssetEmployee').value;
+  const employeeByAssetId = new Map(employees.map((employee) => [employee.id, employee]));
+  return reportAssets.map((asset) => ({ asset, employee: employeeByAssetId.get(asset.employeeId) || employees.find((item) => item.name === asset.assignedTo || item.id === asset.assignedTo) }))
+    .filter(({ asset, employee }) => employee && !employee.deleted && (department === 'all' || employee.department === department) && (employeeId === 'all' || employee.id === employeeId) || !employee && department === 'all' && employeeId === 'all')
+    .sort((first, second) => String(first.employee?.name || '').localeCompare(String(second.employee?.name || '')));
+}
+
+function renderAssetReport() {
+  const records = selectedReportAssets();
+  const activeCount = records.filter(({ asset }) => !asset.dateReturned).length;
+  document.querySelector('#assetReportMetrics').innerHTML = `<div><span>Asset records</span><strong>${records.length}</strong></div><div><span>Currently assigned</span><strong>${activeCount}</strong></div><div><span>Employees covered</span><strong>${new Set(records.map(({ employee }) => employee?.id).filter(Boolean)).size}</strong></div>`;
+  document.querySelector('#assetReportRows').innerHTML = records.map(({ asset, employee }) => `<tr><td>${escapeHtml(employee?.name || asset.assignedTo || 'Unknown employee')}</td><td>${escapeHtml(employee?.department || 'Not recorded')}</td><td>${escapeHtml(asset.assetType || asset.name || asset.assetName || 'Company asset')}</td><td>${escapeHtml(asset.description || '')}</td><td>${escapeHtml(asset.serialNumber || asset.reference || 'Not recorded')}</td><td>${escapeHtml(asset.dateIssued || 'Not recorded')}</td><td>${escapeHtml(asset.dateReturned || 'Not returned')}</td><td>${escapeHtml(asset.handover?.name || 'Not attached')}</td></tr>`).join('') || '<tr><td colspan="8" class="empty-state">No asset records match these filters.</td></tr>';
+}
+
+function selectedReportEmployee() {
+  return employees.find((employee) => employee.id === document.querySelector('#reportEmployeeSelect').value && !employee.deleted);
+}
+
+function employeeReportRecords(employee) {
+  const evaluations = employeeEvaluations(employee).slice().sort((first, second) => String(second.date || '').localeCompare(String(first.date || '')));
+  const assignments = reportAssignments.filter((assignment) => assignment.employeeId === employee.id).slice().sort((first, second) => String(second.assignedDate || '').localeCompare(String(first.assignedDate || '')));
+  const resources = new Map(reportResources.map((resource) => [resource.id, resource]));
+  return { evaluations, assignments, resources };
+}
+
+function renderEmployeeReport() {
+  const employee = selectedReportEmployee();
+  const content = document.querySelector('#employeeReportContent');
+  const exportButton = document.querySelector('#exportEmployeeReport');
+  exportButton.disabled = !employee;
+  if (!employee) {
+    content.innerHTML = '<div class="report-empty">Choose an employee to generate their progress summary.</div>';
+    return;
+  }
+  const { evaluations, assignments, resources } = employeeReportRecords(employee);
+  const latestEvaluation = evaluations[0];
+  const previousEvaluation = evaluations[1];
+  const passedCount = assignments.filter((assignment) => assignment.resultStatus === 'Passed').length;
+  const completedCount = assignments.filter((assignment) => assignment.status === 'Completed').length;
+  const change = latestEvaluation && previousEvaluation ? Number(latestEvaluation.score) - Number(previousEvaluation.score) : null;
+  content.innerHTML = `
+    <div class="report-employee-heading"><div><strong>${escapeHtml(employee.name)}</strong><span>${escapeHtml(employee.department)} · ${escapeHtml(employee.role || employee.designation || 'Role not recorded')}</span></div><span>${escapeHtml(employee.reportingTo ? `Reports to ${employee.reportingTo}` : '')}</span></div>
+    <div class="report-metrics"><div><span>Latest evaluation</span><strong>${latestEvaluation ? `${Number(latestEvaluation.score) || 0}<small>/100</small>` : '—'}</strong><small>${escapeHtml(latestEvaluation?.date || 'No evaluation yet')}</small></div><div><span>Score change</span><strong class="${change === null ? 'neutral' : change >= 0 ? 'positive' : 'negative'}">${change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}`}</strong><small>${previousEvaluation ? `vs ${escapeHtml(previousEvaluation.date || 'previous evaluation')}` : 'Needs another evaluation'}</small></div><div><span>Learning passed</span><strong>${passedCount}<small>/${assignments.length}</small></strong><small>${completedCount} completed · ${assignments.length - completedCount} active</small></div></div>
+    <div class="report-subsection"><h4>Evaluation history</h4><div class="table-wrap"><table><thead><tr><th>Date</th><th>Score</th><th>Strengths</th><th>Development focus</th><th>Evaluator comments</th></tr></thead><tbody>${evaluations.map((evaluation) => `<tr><td>${escapeHtml(evaluation.date || 'Not recorded')}</td><td>${Number(evaluation.score) || 0}/100</td><td>${escapeHtml(evaluation.strength || '—')}</td><td>${escapeHtml(evaluation.development || evaluation.improvement || '—')}</td><td>${escapeHtml(evaluation.evaluatorComment || evaluation.managerComments || '—')}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">No evaluations recorded.</td></tr>'}</tbody></table></div></div>
+    <div class="report-subsection"><h4>Learning progress</h4><div class="table-wrap"><table><thead><tr><th>Training</th><th>Assigned</th><th>Due</th><th>Status</th><th>Result</th><th>Passed date</th><th>Skills</th></tr></thead><tbody>${assignments.map((assignment) => `<tr><td>${escapeHtml(resources.get(assignment.resourceId)?.title || 'Deleted course')}</td><td>${escapeHtml(assignment.assignedDate || 'Not recorded')}</td><td>${escapeHtml(assignment.dueDate || 'Not set')}</td><td>${escapeHtml(assignment.status || 'Assigned')}</td><td>${escapeHtml(assignment.resultStatus || 'Pending')}</td><td>${escapeHtml(assignment.passedDate || '—')}</td><td>${escapeHtml((assignment.skillsToDevelop || []).join(', ') || '—')}</td></tr>`).join('') || '<tr><td colspan="7" class="empty-state">No learning assignments recorded.</td></tr>'}</tbody></table></div></div>`;
+}
+
+function renderReports() {
+  const activeEmployees = employees.filter((employee) => !employee.deleted).sort((first, second) => first.name.localeCompare(second.name));
+  const departments = reportDepartments().map((department) => ({ value: department, label: department }));
+  setReportOptions(document.querySelector('#reportEvaluationDepartment'), departments, 'All departments');
+  setReportOptions(document.querySelector('#reportAssetDepartment'), departments, 'All departments');
+  const employeeOptions = activeEmployees.map((employee) => ({ value: employee.id, label: employee.name }));
+  setReportOptions(document.querySelector('#reportAssetEmployee'), employeeOptions, 'All employees');
+  setReportOptions(document.querySelector('#reportEmployeeSelect'), employeeOptions, null);
+  const quarterKeys = [...new Set(activeEmployees.flatMap((employee) => employeeEvaluations(employee).map((evaluation) => quarterFromDate(evaluation.date)?.key).filter(Boolean)))].sort().reverse();
+  const currentQuarter = quarterFromDate(new Date().toISOString().slice(0, 10))?.key;
+  const quarters = [...new Set([currentQuarter, ...quarterKeys])].filter(Boolean);
+  setReportOptions(document.querySelector('#reportEvaluationQuarter'), quarters.map((key) => ({ value: key, label: quarterFromDate(`${key.slice(0, 4)}-${(Number(key.slice(-1)) - 1) * 3 + 1}-01`)?.label || key })), 'All quarters', currentQuarter);
+  renderEvaluationReport();
+  renderAssetReport();
+  renderEmployeeReport();
+}
+
+function csvValue(value) {
+  const rawText = String(value ?? '');
+  const text = /^[\s]*[=+@-]/.test(rawText) ? `'${rawText}` : rawText;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadReportCsv(filename, headers, rows) {
+  const csv = [headers, ...rows].map((row) => row.map(csvValue).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function reportFilename(label) {
+  return `${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
+}
+
+document.querySelectorAll('[data-report-view]').forEach((button) => button.addEventListener('click', () => {
+  document.querySelectorAll('[data-report-view]').forEach((item) => {
+    const selected = item === button;
+    item.classList.toggle('active', selected);
+    item.setAttribute('aria-pressed', String(selected));
+  });
+  document.querySelectorAll('[data-report-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.reportPanel === button.dataset.reportView));
+}));
+document.querySelector('#reportEvaluationQuarter').addEventListener('change', renderEvaluationReport);
+document.querySelector('#reportEvaluationDepartment').addEventListener('change', renderEvaluationReport);
+document.querySelector('#reportAssetDepartment').addEventListener('change', renderAssetReport);
+document.querySelector('#reportAssetEmployee').addEventListener('change', renderAssetReport);
+document.querySelector('#reportEmployeeSelect').addEventListener('change', renderEmployeeReport);
+document.querySelector('#exportEvaluationReport').addEventListener('click', () => {
+  const rows = reportEvaluationRecords().map(({ employee, evaluation }) => [employee.name, employee.department, evaluation.date || '', evaluation.evaluator || employee.evaluator || employee.reportingTo || '', evaluation.score ?? '', evaluation.strength || '', evaluation.improvement || '', evaluation.development || '', evaluation.evaluatorComment || evaluation.managerComments || '']);
+  downloadReportCsv(reportFilename('evaluation-results'), ['Employee', 'Department', 'Evaluation date', 'Evaluator', 'Score', 'Strengths', 'Improvement', 'Development focus', 'Comments'], rows);
+});
+document.querySelector('#exportAssetReport').addEventListener('click', () => {
+  const rows = selectedReportAssets().map(({ asset, employee }) => [employee?.name || asset.assignedTo || 'Unknown employee', employee?.department || '', asset.assetType || asset.name || asset.assetName || 'Company asset', asset.description || '', asset.serialNumber || asset.reference || '', asset.dateIssued || '', asset.dateReturned || '', asset.handover?.name || '']);
+  downloadReportCsv(reportFilename('company-assets'), ['Employee', 'Department', 'Asset', 'Description', 'Serial / asset No.', 'Date issued', 'Date returned', 'Handover file'], rows);
+});
+document.querySelector('#exportEmployeeReport').addEventListener('click', () => {
+  const employee = selectedReportEmployee();
+  if (!employee) return;
+  const { evaluations, assignments, resources } = employeeReportRecords(employee);
+  const rows = [
+    ['Summary', employee.name, employee.department, evaluations[0]?.date || '', evaluations[0]?.score ?? '', '', '', '', '', `Learning assignments: ${assignments.length}; completed: ${assignments.filter((assignment) => assignment.status === 'Completed').length}; passed: ${assignments.filter((assignment) => assignment.resultStatus === 'Passed').length}`],
+    ...evaluations.map((evaluation) => ['Evaluation', employee.name, employee.department, evaluation.date || '', evaluation.score ?? '', '', '', '', '', [evaluation.strength, evaluation.improvement, evaluation.development, evaluation.evaluatorComment || evaluation.managerComments].filter(Boolean).join(' | ')]),
+    ...assignments.map((assignment) => ['Learning', employee.name, employee.department, assignment.assignedDate || '', '', assignment.status || 'Assigned', assignment.dueDate || '', assignment.resultStatus || 'Pending', assignment.passedDate || '', `${resources.get(assignment.resourceId)?.title || 'Deleted course'}${assignment.skillsToDevelop?.length ? ` | Skills: ${assignment.skillsToDevelop.join(', ')}` : ''}`])
+  ];
+  downloadReportCsv(reportFilename(`employee-${employee.name}`), ['Record type', 'Employee', 'Department', 'Date', 'Score', 'Status', 'Due date', 'Result', 'Passed date', 'Notes'], rows);
+});
+
+document.querySelectorAll('[data-module]:not(.qbel-nav-link)').forEach((button) => button.addEventListener('click', () => showModule(button.dataset.module)));
+document.querySelectorAll('.qbel-nav-link').forEach((link) => link.addEventListener('click', (event) => {
   event.preventDefault();
-  switchTab(link.dataset.tab);
+  const developmentView = link.dataset.developmentView;
+  if (developmentView) { openDevelopmentView(developmentView); return; }
+  showModule(link.dataset.module);
+  if (link.dataset.module === 'evaluations' && link.dataset.tab) switchTab(link.dataset.tab);
 }));
 document.querySelector('#viewAllButton').addEventListener('click', () => {
   searchInput.value = '';
@@ -1549,3 +1885,11 @@ if (typeof Auth !== 'undefined' && Auth.currentUser) {
   showModule('home');
   void loadCloudData();
 }
+
+document.querySelectorAll('[data-action="sign-out"]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    if (typeof Auth === 'undefined') return;
+    await Auth.logout();
+    window.location.reload();
+  });
+});

@@ -70,6 +70,7 @@
         <span class="nav-group-title">Evaluations</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="evaluations" data-tab="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
         <span class="nav-group-title">Learning Center</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
@@ -96,6 +97,7 @@
         <span class="nav-group-title">Evaluations</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="evaluations" data-tab="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
         <span class="nav-group-title">Learning Center</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
@@ -152,6 +154,7 @@
         <span class="nav-group-title">Evaluations</span>
         <a class="nav-item nav-subitem qbel-nav-link active" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#reports" data-module="evaluations" data-tab="reports"><span class="nav-icon-badge pastel-yellow">&#9636;</span>Reports</a>
         <span class="nav-group-title">Learning Center</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
@@ -209,6 +212,31 @@
         <div class="section-heading"><div><span class="section-kicker">Keep things moving</span><h2>Recent evaluations</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="searchInput" type="search" placeholder="Search employees" /></div><select id="departmentFilter" aria-label="Filter by department"><option value="all">All departments</option><option value="HR">HR</option><option value="Operations">Operations</option><option value="Procurement">Procurement</option><option value="Engineering">Engineering</option><option value="IT">IT</option></select><button class="outline-button" id="viewAllButton">View all <span>→</span></button></div></div>
         <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluator</th><th>Score</th><th>Status</th><th></th></tr></thead><tbody id="evaluationRows"></tbody></table></div>
       </section>
+      </div>
+
+      <div class="tab-panel" id="reportsTab" data-tab-panel="reports">
+        <section class="workspace-section reports-workspace" id="reports">
+          <div class="section-heading"><div><span class="section-kicker">Company insights</span><h2>Reports</h2><p class="section-description">Review quarterly performance, assigned assets, and individual development progress.</p></div></div>
+          <div class="report-switcher" role="tablist" aria-label="Report type">
+            <button type="button" class="report-switch active" data-report-view="evaluations" aria-pressed="true">Evaluation results</button>
+            <button type="button" class="report-switch" data-report-view="assets" aria-pressed="false">Company assets</button>
+            <button type="button" class="report-switch" data-report-view="employee" aria-pressed="false">Employee progress</button>
+          </div>
+          <section class="report-panel active" data-report-panel="evaluations">
+            <div class="report-heading"><div><span class="section-kicker">Evaluation results</span><h3>Quarter and department</h3></div><div class="report-controls"><label>Quarter<select id="reportEvaluationQuarter"></select></label><label>Department<select id="reportEvaluationDepartment"><option value="all">All departments</option></select></label><button type="button" class="primary-button" id="exportEvaluationReport">Export CSV</button></div></div>
+            <div class="report-metrics" id="evaluationReportMetrics"></div>
+            <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Evaluation date</th><th>Evaluator</th><th>Score</th><th>Feedback summary</th></tr></thead><tbody id="evaluationReportRows"></tbody></table></div>
+          </section>
+          <section class="report-panel" data-report-panel="assets">
+            <div class="report-heading"><div><span class="section-kicker">Asset register</span><h3>Assigned company assets</h3></div><div class="report-controls"><label>Department<select id="reportAssetDepartment"><option value="all">All departments</option></select></label><label>Employee<select id="reportAssetEmployee"><option value="all">All employees</option></select></label><button type="button" class="primary-button" id="exportAssetReport">Export CSV</button></div></div>
+            <div class="report-metrics" id="assetReportMetrics"></div>
+            <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Asset</th><th>Description</th><th>Serial / asset No.</th><th>Issued</th><th>Returned</th><th>Handover file</th></tr></thead><tbody id="assetReportRows"></tbody></table></div>
+          </section>
+          <section class="report-panel" data-report-panel="employee">
+            <div class="report-heading"><div><span class="section-kicker">Individual summary</span><h3>Evaluation and learning progress</h3></div><div class="report-controls"><label>Employee<select id="reportEmployeeSelect"><option value="">Select an employee</option></select></label><button type="button" class="primary-button" id="exportEmployeeReport" disabled>Export CSV</button></div></div>
+            <div id="employeeReportContent"><div class="report-empty">Choose an employee to generate their progress summary.</div></div>
+          </section>
+        </section>
       </div>
     </main>
   </div>
