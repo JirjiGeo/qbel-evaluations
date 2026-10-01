@@ -974,13 +974,13 @@ function exportEvaluationPdf(employee, evaluation = latestEvaluation(employee)) 
   showPrintPreview(reportHtml.replace('<div class="signatures"><div class="signature">Employee Signature</div><div class="signature">Manager Signature</div><div class="signature">Evaluator Signature</div></div>', signatureHtml));
 }
 
-function showPrintPreview(reportHtml) {
+function showPrintPreview(reportHtml, previewTitle = 'Evaluation preview') {
   let preview = document.querySelector('#printPreview');
   if (!preview) {
     preview = document.createElement('div');
     preview.id = 'printPreview';
     preview.className = 'modal-backdrop open';
-    preview.innerHTML = '<section class="print-preview" role="dialog" aria-modal="true"><div class="print-preview-toolbar"><strong>Evaluation preview</strong><div><button class="outline-button" id="closePrintPreview">Close</button><button class="primary-button" id="printPreviewButton">Print / Save PDF</button></div></div><iframe title="Evaluation print preview"></iframe></section>';
+    preview.innerHTML = '<section class="print-preview" role="dialog" aria-modal="true"><div class="print-preview-toolbar"><strong></strong><div><button class="outline-button" id="closePrintPreview">Close</button><button class="primary-button" id="printPreviewButton">Print / Save PDF</button></div></div><iframe title="Print preview"></iframe></section>';
     document.body.appendChild(preview);
     const style = document.createElement('style');
     style.textContent = '#printPreview{padding:18px;z-index:30}.print-preview{display:flex;flex-direction:column;width:min(1000px,100%);height:min(92vh,900px);background:#fff;border-radius:12px;overflow:hidden}.print-preview-toolbar{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);color:var(--brand)}.print-preview-toolbar button{margin-left:8px}.print-preview iframe{flex:1;width:100%;border:0;background:#fff}@media(max-width:760px){.print-preview-toolbar{align-items:flex-start;gap:10px;flex-direction:column}.print-preview-toolbar button{margin-left:0;margin-right:6px}}';
@@ -991,6 +991,8 @@ function showPrintPreview(reportHtml) {
     document.querySelector('#closePrintPreview').addEventListener('click', () => preview.remove());
     document.querySelector('#printPreviewButton').addEventListener('click', () => preview.querySelector('iframe').contentWindow.print());
   }
+  preview.querySelector('.print-preview-toolbar strong').textContent = previewTitle;
+  preview.querySelector('iframe').title = previewTitle;
   preview.querySelector('iframe').srcdoc = reportHtml;
 }
 
@@ -1856,6 +1858,73 @@ function renderEmployeeReport() {
     <section class="employee-report-section"><div class="employee-report-section-heading"><span>05</span><h4>Acquired skills and growth</h4></div><div class="report-subsection"><h5>Skills and proficiency</h5><div class="table-wrap"><table><thead><tr><th>Skill</th><th>Current level</th><th>Target level</th><th>Progress</th><th>Assessed</th></tr></thead><tbody>${skillRows || '<tr><td colspan="5" class="empty-state">No skills assessed.</td></tr>'}</tbody></table></div></div><div class="report-subsection"><h5>Certifications</h5><div class="table-wrap"><table><thead><tr><th>Certificate</th><th>Issuer</th><th>Issued</th><th>Expires</th></tr></thead><tbody>${certificateRows || '<tr><td colspan="4" class="empty-state">No certifications recorded.</td></tr>'}</tbody></table></div></div><div class="report-subsection"><h5>Development plans</h5><div class="table-wrap"><table><thead><tr><th>Goal</th><th>Action plan</th><th>Due date</th><th>Status</th></tr></thead><tbody>${planRows || '<tr><td colspan="4" class="empty-state">No development plans recorded.</td></tr>'}</tbody></table></div></div></section>`;
 }
 
+function exportEmployeeReportPdf() {
+  const employee = selectedReportEmployee();
+  if (!employee) return;
+  const logoUrl = escapeHtml(new URL('logo.png', document.baseURI).href);
+  const generatedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const reportHtml = `<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Employee Profile Report - ${escapeHtml(employee.name)}</title>
+        <style>
+          @page{size:A4;margin:15mm 14mm 16mm}
+          *{box-sizing:border-box}
+          body{margin:0;color:#202a25;font:10px/1.45 'DM Sans',Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+          .print-report{max-width:100%;margin:0 auto}
+          .company-header{display:grid;grid-template-columns:116px 1fr auto;align-items:center;gap:16px;padding:0 0 13px;border-bottom:3px solid #013220}
+          .company-logo{display:block;width:108px;max-height:48px;object-fit:contain;object-position:left center}
+          .company-name{display:grid;gap:3px;color:#013220;font:700 13px 'Space Grotesk',Arial,sans-serif}
+          .company-name span,.generated-date{color:#69776f;font:700 8px 'DM Sans',Arial,sans-serif;letter-spacing:.7px;text-transform:uppercase}
+          .generated-date{text-align:right;letter-spacing:0;text-transform:none}
+          .report-title{margin:17px 0 3px;color:#013220;font:700 22px 'Space Grotesk',Arial,sans-serif}
+          .report-subtitle{margin:0 0 12px;color:#69776f;font-size:10px}
+          .employee-report-section{display:grid;gap:9px;min-width:0;padding:13px 0;border-top:1px solid #d9e3dc}
+          .employee-report-section-heading{display:flex;align-items:center;gap:8px;break-after:avoid}
+          .employee-report-section-heading>span{display:grid;place-items:center;width:23px;height:23px;background:#e7f2eb;color:#013220;font:700 9px 'Space Grotesk',Arial,sans-serif}
+          .employee-report-section-heading h4{margin:0;color:#013220;font:700 13px 'Space Grotesk',Arial,sans-serif}
+          .employee-report-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:#d9e3dc;border:1px solid #d9e3dc}
+          .employee-report-details>div{display:grid;gap:3px;min-width:0;padding:8px;background:#f5f8f6}
+          .employee-report-details span,.report-metrics span{color:#66766d;font-size:8px;font-weight:700;text-transform:uppercase}
+          .employee-report-details strong{font-size:9px;overflow-wrap:anywhere}
+          .report-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+          .report-metrics-four{grid-template-columns:repeat(4,minmax(0,1fr))}
+          .report-metrics>div{display:grid;gap:3px;min-width:0;padding:8px;border:1px solid #d9e3dc;border-left:3px solid #4a9870;background:#f5f8f6}
+          .report-metrics strong{color:#013220;font:700 16px 'Space Grotesk',Arial,sans-serif;overflow-wrap:anywhere}
+          .report-metrics strong small{margin-left:2px;color:#66766d;font:600 8px 'DM Sans',Arial,sans-serif}
+          .report-metrics>div>small{color:#66766d;font-size:8px}
+          .report-subsection{display:grid;gap:5px;min-width:0}
+          .report-subsection h5{margin:0;color:#33483d;font:700 10px 'Space Grotesk',Arial,sans-serif}
+          .table-wrap{width:100%;max-width:100%;overflow:visible}
+          table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:auto;font-size:8px}
+          th,td{padding:5px 6px;border:1px solid #d9e3dc;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+          th{background:#edf4f0;color:#365449;font-size:7px;text-transform:uppercase}
+          thead{display:table-header-group}
+          tr{break-inside:avoid}
+          .quarter-score,.quarter-change{color:#013220;font-weight:700}
+          .quarter-change.positive{color:#27855f}.quarter-change.negative{color:#c45b55}.quarter-change.neutral{color:#66766d}
+          .report-name-list{display:grid;gap:0;margin:0;padding:0;list-style:none;border-top:1px solid #d9e3dc}
+          .report-name-list li{padding:6px 8px;border-bottom:1px solid #d9e3dc;font-size:9px}
+          .empty-state,.report-empty{padding:8px;color:#66766d;text-align:left}
+          .report-footer{margin-top:14px;padding-top:7px;border-top:1px solid #d9e3dc;color:#78867e;font-size:7px;text-align:center}
+          @media print{.employee-report-section{break-inside:auto}.employee-report-details,.report-metrics,.report-subsection{break-inside:avoid}}
+        </style>
+      </head>
+      <body>
+        <main class="print-report">
+          <header class="company-header"><img class="company-logo" src="${logoUrl}" alt="QBEL logo" /><div class="company-name">QBEL FM &amp; Technical Services<span>Employee performance and development</span></div><div class="generated-date">Generated<br />${escapeHtml(generatedDate)}</div></header>
+          <h1 class="report-title">Employee Profile Report</h1>
+          <p class="report-subtitle">Confidential employee evaluation, asset, and development summary</p>
+          ${document.querySelector('#employeeReportContent').innerHTML}
+          <footer class="report-footer">Confidential · QBEL FM &amp; Technical Services</footer>
+        </main>
+      </body>
+    </html>`;
+  showPrintPreview(reportHtml, 'Employee profile report');
+}
+
 function renderReports() {
   const activeEmployees = employees.filter((employee) => !employee.deleted).sort((first, second) => first.name.localeCompare(second.name));
   const departments = reportDepartments().map((department) => ({ value: department, label: department }));
@@ -1926,31 +1995,7 @@ document.querySelector('#exportResourceReport').addEventListener('click', () => 
   downloadReportCsv(reportFilename('resource-assignments'), ['Resource', 'Category', 'Times assigned', 'Assigned to', 'Department', 'Assigned date', 'Status', 'Result', 'Due date', 'Passed date'], rows);
 });
 document.querySelector('#exportEmployeeReport').addEventListener('click', () => {
-  const employee = selectedReportEmployee();
-  if (!employee) return;
-  const { evaluations, assignments, assets, resources, skills, plans, certifications } = employeeReportRecords(employee);
-  const passedCount = assignments.filter((assignment) => assignment.resultStatus === 'Passed').length;
-  const failedCount = assignments.filter((assignment) => assignment.resultStatus === 'Failed').length;
-  const missedCount = assignments.filter(isMissedTraining).length;
-  const documents = [...new Set([
-    ...(employee.documents || []).map((document) => document.name).filter(Boolean),
-    ...assets.map((asset) => asset.handover?.name).filter(Boolean)
-  ])];
-  const rows = [
-    ['Profile', 'Employee details', employee.joiningDate || '', employee.name, employee.department || '', employee.role || employee.designation || '', employee.reportingTo || '', '', '', ''],
-    ...evaluations.map((evaluation) => {
-      const { quarter, previousQuarter, previousEvaluation, change } = evaluationQuarterProgress(employee, evaluation);
-      return ['Evaluation', 'Results', evaluation.date || '', quarter?.label || '', Number(evaluation.score) || 0, previousEvaluation?.score ?? '', change === null ? '' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}`, previousQuarter?.label || '', '', ''];
-    }),
-    ...assets.map((asset) => ['Asset', 'Assigned assets', asset.dateIssued || '', asset.assetType || asset.name || asset.assetName || 'Company asset', asset.dateReturned ? 'Returned' : 'Assigned', '', '', '', '', '']),
-    ...documents.map((name) => ['Document', 'Document names', '', name, '', '', '', '', '', '']),
-    ['Training summary', 'Training results', '', `${assignments.length} courses`, '', `${passedCount} passed`, `${failedCount} failed`, `${missedCount} missed`, '', ''],
-    ...assignments.map((assignment) => ['Training', 'Training results', assignment.assignedDate || '', resources.get(assignment.resourceId)?.title || 'Deleted course', isMissedTraining(assignment) ? 'Missed' : assignment.status || 'Assigned', assignment.resultStatus || 'Pending', '', '', assignment.dueDate || '', assignment.passedDate || '']),
-    ...skills.map((skill) => ['Skill', 'Acquired skills', skill.assessedOn || '', skill.competency, Number(skill.currentLevel) >= Number(skill.targetLevel) ? 'Target achieved' : 'In progress', skill.currentLevel, skill.targetLevel, '', '', '']),
-    ...certifications.map((certificate) => ['Certification', 'Acquired skills', certificate.issuedOn || '', certificate.name, certificate.issuer || '', '', '', '', certificate.expiresOn || '', '']),
-    ...plans.map((plan) => ['Growth plan', 'Growth', plan.dueDate || '', plan.goal, plan.status || 'Planned', '', '', '', '', plan.actionPlan || ''])
-  ];
-  downloadReportCsv(reportFilename(`employee-${employee.name}`), ['Record type', 'Section', 'Date', 'Name / quarter', 'Status / result', 'Score / level', 'Previous result / target', 'Progress / previous quarter', 'Due date / expiry', 'Details'], rows);
+  exportEmployeeReportPdf();
 });
 
 document.querySelectorAll('[data-module]:not(.qbel-nav-link)').forEach((button) => button.addEventListener('click', () => showModule(button.dataset.module)));
