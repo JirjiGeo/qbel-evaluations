@@ -231,6 +231,9 @@ let editingEvaluationIndex = null;
 let reportAssets = [];
 let reportAssignments = [];
 let reportResources = [];
+let reportSkills = [];
+let reportPlans = [];
+let reportCertifications = [];
 
 const deletedEvaluationIds = new Set(JSON.parse(localStorage.getItem('northstar-deleted-evaluations') || '[]'));
 const cloudEmployeeIds = new Set();
@@ -275,21 +278,26 @@ const moduleHome = document.querySelector('#moduleHome');
 const evaluationsShell = document.querySelector('#evaluationsShell');
 const employeesShell = document.querySelector('#employeesShell');
 const developmentShell = document.querySelector('#developmentShell');
+const reportsShell = document.querySelector('#reportsShell');
 
 function showModule(moduleName) {
   const isHome = moduleName === 'home';
   const isEvaluations = moduleName === 'evaluations';
   const isEmployees = moduleName === 'employees';
   const isDevelopment = moduleName === 'development';
+  const isReports = moduleName === 'reports';
   moduleHome?.classList.toggle('active', isHome);
   evaluationsShell?.classList.toggle('module-hidden', !isEvaluations);
   employeesShell?.classList.toggle('module-hidden', !isEmployees);
   developmentShell?.classList.toggle('module-hidden', !isDevelopment);
+  reportsShell?.classList.toggle('module-hidden', !isReports);
   moduleHome?.setAttribute('aria-hidden', String(!isHome));
   evaluationsShell?.setAttribute('aria-hidden', String(!isEvaluations));
   employeesShell?.setAttribute('aria-hidden', String(!isEmployees));
   developmentShell?.setAttribute('aria-hidden', String(!isDevelopment));
+  reportsShell?.setAttribute('aria-hidden', String(!isReports));
   if (isEvaluations) switchTab('dashboard');
+  else if (isReports) switchTab('reports');
   else syncSidebarNav(moduleName, null);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -297,6 +305,7 @@ function showModule(moduleName) {
 function syncSidebarNav(moduleName, tabName) {
   document.querySelectorAll('.qbel-nav-link[data-module="employees"]').forEach((link) => link.classList.toggle('active', moduleName === 'employees'));
   document.querySelectorAll('.qbel-nav-link[data-module="evaluations"][data-tab]').forEach((link) => link.classList.toggle('active', moduleName === 'evaluations' && link.dataset.tab === tabName));
+  document.querySelectorAll('.qbel-nav-link[data-module="reports"]').forEach((link) => link.classList.toggle('active', moduleName === 'reports'));
 }
 
 function withDevelopmentFrame(callback, attempt = 0) {
@@ -1646,7 +1655,7 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
 });
 function switchTab(tabName) {
   document.querySelectorAll('[data-tab-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.tabPanel === tabName));
-  syncSidebarNav('evaluations', tabName);
+  syncSidebarNav(tabName === 'reports' ? 'reports' : 'evaluations', tabName);
   if (tabName === 'reports') void refreshReportData();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1659,11 +1668,17 @@ async function refreshReportData() {
   reportAssets = readReportStorage('qbel-operations-assets');
   reportAssignments = readReportStorage('qbel-development-training');
   reportResources = readReportStorage('qbel-development-library');
+  reportSkills = [];
+  reportPlans = [];
+  reportCertifications = [];
   if (window.supabaseClient) {
-    const [assetResult, assignmentResult, resourceResult] = await Promise.all([
+    const [assetResult, assignmentResult, resourceResult, skillResult, planResult, certificationResult] = await Promise.all([
       window.supabaseClient.from('employee_assets').select('id, employee_id, asset_type, description, serial_asset_no, date_issued, date_returned, handover_form_name').order('created_at', { ascending: true }),
       window.supabaseClient.from('training_assignments').select('id, employee_id, resource_id, quarter, assigned_date, due_date, status, completed_date, result_status, result_source, passed_date, training_valid_until, skills_to_develop').order('created_at', { ascending: true }),
-      window.supabaseClient.from('development_resources').select('id, title, category')
+      window.supabaseClient.from('development_resources').select('id, title, category'),
+      window.supabaseClient.from('development_skills').select('id, employee_id, competency, current_level, target_level, assessed_on').order('assessed_on', { ascending: false }),
+      window.supabaseClient.from('development_plans').select('id, employee_id, goal, action_plan, due_date, status').order('due_date', { ascending: true }),
+      window.supabaseClient.from('employee_certifications').select('id, employee_id, certificate_name, issuer, issued_on, expires_on').order('issued_on', { ascending: false })
     ]);
     if (!assetResult.error) {
       const localAssets = reportAssets.filter((asset) => !isCloudId(asset.id));
@@ -1680,6 +1695,12 @@ async function refreshReportData() {
       (resourceResult.data || []).forEach((resource) => resourcesById.set(resource.id, { id: resource.id, title: resource.title, category: resource.category }));
       reportResources = [...resourcesById.values()];
     } else console.error('Could not refresh report learning resources', resourceResult.error);
+    if (!skillResult.error) reportSkills = (skillResult.data || []).map((skill) => ({ id: skill.id, employeeId: skill.employee_id, competency: skill.competency, currentLevel: skill.current_level, targetLevel: skill.target_level, assessedOn: skill.assessed_on }));
+    else console.error('Could not refresh report skills', skillResult.error);
+    if (!planResult.error) reportPlans = (planResult.data || []).map((plan) => ({ id: plan.id, employeeId: plan.employee_id, goal: plan.goal, actionPlan: plan.action_plan, dueDate: plan.due_date, status: plan.status }));
+    else console.error('Could not refresh report development plans', planResult.error);
+    if (!certificationResult.error) reportCertifications = (certificationResult.data || []).map((certificate) => ({ id: certificate.id, employeeId: certificate.employee_id, name: certificate.certificate_name, issuer: certificate.issuer, issuedOn: certificate.issued_on, expiresOn: certificate.expires_on }));
+    else console.error('Could not refresh report certifications', certificationResult.error);
     localStorage.setItem('qbel-development-training', JSON.stringify(reportAssignments));
     localStorage.setItem('qbel-development-library', JSON.stringify(reportResources));
   }
@@ -1778,8 +1799,24 @@ function selectedReportEmployee() {
 function employeeReportRecords(employee) {
   const evaluations = employeeEvaluations(employee).slice().sort((first, second) => String(second.date || '').localeCompare(String(first.date || '')));
   const assignments = reportAssignments.filter((assignment) => assignment.employeeId === employee.id).slice().sort((first, second) => String(second.assignedDate || '').localeCompare(String(first.assignedDate || '')));
+  const assets = reportAssets.filter((asset) => asset.employeeId === employee.id || asset.assignedTo === employee.id || asset.assignedTo === employee.name);
   const resources = new Map(reportResources.map((resource) => [resource.id, resource]));
-  return { evaluations, assignments, resources };
+  const skills = reportSkills.filter((skill) => skill.employeeId === employee.id);
+  const plans = reportPlans.filter((plan) => plan.employeeId === employee.id);
+  const certifications = reportCertifications.filter((certificate) => certificate.employeeId === employee.id);
+  return { evaluations, assignments, assets, resources, skills, plans, certifications };
+}
+
+function isMissedTraining(assignment) {
+  return assignment.status !== 'Completed' && assignment.dueDate && assignment.dueDate < new Date().toISOString().slice(0, 10);
+}
+
+function evaluationQuarterProgress(employee, evaluation) {
+  const quarter = quarterFromDate(evaluation.date);
+  const previousQuarter = previousQuarterFrom(quarter);
+  const previousEvaluation = previousQuarter ? latestEvaluationInQuarter(employee, previousQuarter.key) : null;
+  const change = previousEvaluation ? Number(evaluation.score) - Number(previousEvaluation.score) : null;
+  return { quarter, previousQuarter, previousEvaluation, change };
 }
 
 function renderEmployeeReport() {
@@ -1791,17 +1828,32 @@ function renderEmployeeReport() {
     content.innerHTML = '<div class="report-empty">Choose an employee to generate their progress summary.</div>';
     return;
   }
-  const { evaluations, assignments, resources } = employeeReportRecords(employee);
+  const { evaluations, assignments, assets, resources, skills, plans, certifications } = employeeReportRecords(employee);
   const latestEvaluation = evaluations[0];
-  const previousEvaluation = evaluations[1];
   const passedCount = assignments.filter((assignment) => assignment.resultStatus === 'Passed').length;
-  const completedCount = assignments.filter((assignment) => assignment.status === 'Completed').length;
-  const change = latestEvaluation && previousEvaluation ? Number(latestEvaluation.score) - Number(previousEvaluation.score) : null;
+  const failedCount = assignments.filter((assignment) => assignment.resultStatus === 'Failed').length;
+  const missedAssignments = assignments.filter(isMissedTraining);
+  const latestProgress = latestEvaluation ? evaluationQuarterProgress(employee, latestEvaluation) : null;
+  const documents = [...new Set([
+    ...(employee.documents || []).map((document) => document.name).filter(Boolean),
+    ...assets.map((asset) => asset.handover?.name).filter(Boolean)
+  ])];
+  const evaluationRows = evaluations.map((evaluation) => {
+    const { quarter, previousQuarter, previousEvaluation, change } = evaluationQuarterProgress(employee, evaluation);
+    const changeLabel = change === null ? 'No prior quarter result' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}`;
+    return `<tr><td>${escapeHtml(quarter?.label || evaluation.date || 'Not recorded')}</td><td>${escapeHtml(evaluation.date || 'Not recorded')}</td><td><strong class="quarter-score">${Number(evaluation.score) || 0}<small>/100</small></strong></td><td>${escapeHtml(previousQuarter?.label || '—')}</td><td>${previousEvaluation ? `${Number(previousEvaluation.score) || 0}/100` : '—'}</td><td><strong class="quarter-change ${change === null ? 'neutral' : change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral'}">${escapeHtml(changeLabel)}</strong></td></tr>`;
+  }).join('');
+  const trainingRows = assignments.map((assignment) => `<tr><td>${escapeHtml(resources.get(assignment.resourceId)?.title || 'Deleted course')}</td><td>${escapeHtml(assignment.assignedDate || 'Not recorded')}</td><td>${escapeHtml(assignment.dueDate || 'Not set')}</td><td>${isMissedTraining(assignment) ? 'Missed' : escapeHtml(assignment.status || 'Assigned')}</td><td>${escapeHtml(assignment.resultStatus || 'Pending')}</td><td>${escapeHtml(assignment.passedDate || '—')}</td></tr>`).join('');
+  const assetRows = assets.map((asset) => `<tr><td>${escapeHtml(asset.assetType || asset.name || asset.assetName || 'Company asset')}</td><td>${escapeHtml(asset.dateIssued || 'Not recorded')}</td><td>${escapeHtml(asset.dateReturned || 'Not returned')}</td></tr>`).join('');
+  const skillRows = skills.map((skill) => `<tr><td>${escapeHtml(skill.competency)}</td><td>${escapeHtml(skill.currentLevel)}</td><td>${escapeHtml(skill.targetLevel)}</td><td>${Number(skill.currentLevel) >= Number(skill.targetLevel) ? 'Target achieved' : 'In progress'}</td><td>${escapeHtml(skill.assessedOn || 'Not recorded')}</td></tr>`).join('');
+  const certificateRows = certifications.map((certificate) => `<tr><td>${escapeHtml(certificate.name)}</td><td>${escapeHtml(certificate.issuer || 'Not recorded')}</td><td>${escapeHtml(certificate.issuedOn || 'Not recorded')}</td><td>${escapeHtml(certificate.expiresOn || 'No expiry recorded')}</td></tr>`).join('');
+  const planRows = plans.map((plan) => `<tr><td>${escapeHtml(plan.goal)}</td><td>${escapeHtml(plan.actionPlan)}</td><td>${escapeHtml(plan.dueDate || 'Not set')}</td><td>${escapeHtml(plan.status || 'Planned')}</td></tr>`).join('');
   content.innerHTML = `
-    <div class="report-employee-heading"><div><strong>${escapeHtml(employee.name)}</strong><span>${escapeHtml(employee.department)} · ${escapeHtml(employee.role || employee.designation || 'Role not recorded')}</span></div><span>${escapeHtml(employee.reportingTo ? `Reports to ${employee.reportingTo}` : '')}</span></div>
-    <div class="report-metrics"><div><span>Latest evaluation</span><strong>${latestEvaluation ? `${Number(latestEvaluation.score) || 0}<small>/100</small>` : '—'}</strong><small>${escapeHtml(latestEvaluation?.date || 'No evaluation yet')}</small></div><div><span>Score change</span><strong class="${change === null ? 'neutral' : change >= 0 ? 'positive' : 'negative'}">${change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}`}</strong><small>${previousEvaluation ? `vs ${escapeHtml(previousEvaluation.date || 'previous evaluation')}` : 'Needs another evaluation'}</small></div><div><span>Learning passed</span><strong>${passedCount}<small>/${assignments.length}</small></strong><small>${completedCount} completed · ${assignments.length - completedCount} active</small></div></div>
-    <div class="report-subsection"><h4>Evaluation history</h4><div class="table-wrap"><table><thead><tr><th>Date</th><th>Score</th><th>Strengths</th><th>Development focus</th><th>Evaluator comments</th></tr></thead><tbody>${evaluations.map((evaluation) => `<tr><td>${escapeHtml(evaluation.date || 'Not recorded')}</td><td>${Number(evaluation.score) || 0}/100</td><td>${escapeHtml(evaluation.strength || '—')}</td><td>${escapeHtml(evaluation.development || evaluation.improvement || '—')}</td><td>${escapeHtml(evaluation.evaluatorComment || evaluation.managerComments || '—')}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-state">No evaluations recorded.</td></tr>'}</tbody></table></div></div>
-    <div class="report-subsection"><h4>Learning progress</h4><div class="table-wrap"><table><thead><tr><th>Training</th><th>Assigned</th><th>Due</th><th>Status</th><th>Result</th><th>Passed date</th><th>Skills</th></tr></thead><tbody>${assignments.map((assignment) => `<tr><td>${escapeHtml(resources.get(assignment.resourceId)?.title || 'Deleted course')}</td><td>${escapeHtml(assignment.assignedDate || 'Not recorded')}</td><td>${escapeHtml(assignment.dueDate || 'Not set')}</td><td>${escapeHtml(assignment.status || 'Assigned')}</td><td>${escapeHtml(assignment.resultStatus || 'Pending')}</td><td>${escapeHtml(assignment.passedDate || '—')}</td><td>${escapeHtml((assignment.skillsToDevelop || []).join(', ') || '—')}</td></tr>`).join('') || '<tr><td colspan="7" class="empty-state">No learning assignments recorded.</td></tr>'}</tbody></table></div></div>`;
+    <section class="employee-report-section"><div class="employee-report-section-heading"><span>01</span><h4>Employee details</h4></div><div class="employee-report-details"><div><span>Employee</span><strong>${escapeHtml(employee.name)}</strong></div><div><span>Department</span><strong>${escapeHtml(employee.department || 'Not recorded')}</strong></div><div><span>Joining date</span><strong>${escapeHtml(employee.joiningDate || 'Not recorded')}</strong></div><div><span>Designation</span><strong>${escapeHtml(employee.role || employee.designation || 'Not recorded')}</strong></div><div><span>Reporting to</span><strong>${escapeHtml(employee.reportingTo || 'Not recorded')}</strong></div></div></section>
+    <section class="employee-report-section"><div class="employee-report-section-heading"><span>02</span><h4>Evaluation results</h4></div><div class="report-metrics"><div><span>Latest result</span><strong>${latestEvaluation ? `${Number(latestEvaluation.score) || 0}<small>/100</small>` : '—'}</strong><small>${escapeHtml(latestEvaluation?.date || 'No evaluation yet')}</small></div><div><span>Previous quarter</span><strong>${latestProgress?.previousEvaluation ? `${Number(latestProgress.previousEvaluation.score) || 0}<small>/100</small>` : '—'}</strong><small>${escapeHtml(latestProgress?.previousQuarter?.label || 'No previous quarter')}</small></div><div><span>Quarter progress</span><strong class="${latestProgress?.change === null || latestProgress?.change === undefined ? 'neutral' : latestProgress.change > 0 ? 'positive' : latestProgress.change < 0 ? 'negative' : 'neutral'}">${latestProgress?.change === null || latestProgress?.change === undefined ? '—' : `${latestProgress.change >= 0 ? '+' : ''}${latestProgress.change.toFixed(1)}`}</strong><small>${latestProgress?.change === null || latestProgress?.change === undefined ? 'No comparison available' : 'points vs previous quarter'}</small></div></div><div class="table-wrap"><table><thead><tr><th>Quarter</th><th>Evaluation date</th><th>Result</th><th>Previous quarter</th><th>Previous result</th><th>Progress</th></tr></thead><tbody>${evaluationRows || '<tr><td colspan="6" class="empty-state">No evaluation results recorded.</td></tr>'}</tbody></table></div></section>
+    <section class="employee-report-section"><div class="employee-report-section-heading"><span>03</span><h4>Assigned assets and documents</h4></div><div class="report-subsection"><h5>Assets</h5><div class="table-wrap"><table><thead><tr><th>Asset name</th><th>Date issued</th><th>Date returned</th></tr></thead><tbody>${assetRows || '<tr><td colspan="3" class="empty-state">No assets assigned.</td></tr>'}</tbody></table></div></div><div class="report-subsection"><h5>Documents</h5>${documents.length ? `<ul class="report-name-list">${documents.map((name) => `<li>${escapeHtml(name)}</li>`).join('')}</ul>` : '<div class="report-empty">No documents recorded.</div>'}</div></section>
+    <section class="employee-report-section"><div class="employee-report-section-heading"><span>04</span><h4>Training and course results</h4></div><div class="report-metrics report-metrics-four"><div><span>Passed</span><strong>${passedCount}</strong></div><div><span>Failed</span><strong>${failedCount}</strong></div><div><span>Missed</span><strong>${missedAssignments.length}</strong></div><div><span>Total courses</span><strong>${assignments.length}</strong></div></div><div class="table-wrap"><table><thead><tr><th>Training</th><th>Assigned</th><th>Due date</th><th>Status</th><th>Result</th><th>Passed date</th></tr></thead><tbody>${trainingRows || '<tr><td colspan="6" class="empty-state">No training assignments recorded.</td></tr>'}</tbody></table></div></section>
+    <section class="employee-report-section"><div class="employee-report-section-heading"><span>05</span><h4>Acquired skills and growth</h4></div><div class="report-subsection"><h5>Skills and proficiency</h5><div class="table-wrap"><table><thead><tr><th>Skill</th><th>Current level</th><th>Target level</th><th>Progress</th><th>Assessed</th></tr></thead><tbody>${skillRows || '<tr><td colspan="5" class="empty-state">No skills assessed.</td></tr>'}</tbody></table></div></div><div class="report-subsection"><h5>Certifications</h5><div class="table-wrap"><table><thead><tr><th>Certificate</th><th>Issuer</th><th>Issued</th><th>Expires</th></tr></thead><tbody>${certificateRows || '<tr><td colspan="4" class="empty-state">No certifications recorded.</td></tr>'}</tbody></table></div></div><div class="report-subsection"><h5>Development plans</h5><div class="table-wrap"><table><thead><tr><th>Goal</th><th>Action plan</th><th>Due date</th><th>Status</th></tr></thead><tbody>${planRows || '<tr><td colspan="4" class="empty-state">No development plans recorded.</td></tr>'}</tbody></table></div></div></section>`;
 }
 
 function renderReports() {
@@ -1876,13 +1928,29 @@ document.querySelector('#exportResourceReport').addEventListener('click', () => 
 document.querySelector('#exportEmployeeReport').addEventListener('click', () => {
   const employee = selectedReportEmployee();
   if (!employee) return;
-  const { evaluations, assignments, resources } = employeeReportRecords(employee);
+  const { evaluations, assignments, assets, resources, skills, plans, certifications } = employeeReportRecords(employee);
+  const passedCount = assignments.filter((assignment) => assignment.resultStatus === 'Passed').length;
+  const failedCount = assignments.filter((assignment) => assignment.resultStatus === 'Failed').length;
+  const missedCount = assignments.filter(isMissedTraining).length;
+  const documents = [...new Set([
+    ...(employee.documents || []).map((document) => document.name).filter(Boolean),
+    ...assets.map((asset) => asset.handover?.name).filter(Boolean)
+  ])];
   const rows = [
-    ['Summary', employee.name, employee.department, evaluations[0]?.date || '', evaluations[0]?.score ?? '', '', '', '', '', `Learning assignments: ${assignments.length}; completed: ${assignments.filter((assignment) => assignment.status === 'Completed').length}; passed: ${assignments.filter((assignment) => assignment.resultStatus === 'Passed').length}`],
-    ...evaluations.map((evaluation) => ['Evaluation', employee.name, employee.department, evaluation.date || '', evaluation.score ?? '', '', '', '', '', [evaluation.strength, evaluation.improvement, evaluation.development, evaluation.evaluatorComment || evaluation.managerComments].filter(Boolean).join(' | ')]),
-    ...assignments.map((assignment) => ['Learning', employee.name, employee.department, assignment.assignedDate || '', '', assignment.status || 'Assigned', assignment.dueDate || '', assignment.resultStatus || 'Pending', assignment.passedDate || '', `${resources.get(assignment.resourceId)?.title || 'Deleted course'}${assignment.skillsToDevelop?.length ? ` | Skills: ${assignment.skillsToDevelop.join(', ')}` : ''}`])
+    ['Profile', 'Employee details', employee.joiningDate || '', employee.name, employee.department || '', employee.role || employee.designation || '', employee.reportingTo || '', '', '', ''],
+    ...evaluations.map((evaluation) => {
+      const { quarter, previousQuarter, previousEvaluation, change } = evaluationQuarterProgress(employee, evaluation);
+      return ['Evaluation', 'Results', evaluation.date || '', quarter?.label || '', Number(evaluation.score) || 0, previousEvaluation?.score ?? '', change === null ? '' : `${change >= 0 ? '+' : ''}${change.toFixed(1)}`, previousQuarter?.label || '', '', ''];
+    }),
+    ...assets.map((asset) => ['Asset', 'Assigned assets', asset.dateIssued || '', asset.assetType || asset.name || asset.assetName || 'Company asset', asset.dateReturned ? 'Returned' : 'Assigned', '', '', '', '', '']),
+    ...documents.map((name) => ['Document', 'Document names', '', name, '', '', '', '', '', '']),
+    ['Training summary', 'Training results', '', `${assignments.length} courses`, '', `${passedCount} passed`, `${failedCount} failed`, `${missedCount} missed`, '', ''],
+    ...assignments.map((assignment) => ['Training', 'Training results', assignment.assignedDate || '', resources.get(assignment.resourceId)?.title || 'Deleted course', isMissedTraining(assignment) ? 'Missed' : assignment.status || 'Assigned', assignment.resultStatus || 'Pending', '', '', assignment.dueDate || '', assignment.passedDate || '']),
+    ...skills.map((skill) => ['Skill', 'Acquired skills', skill.assessedOn || '', skill.competency, Number(skill.currentLevel) >= Number(skill.targetLevel) ? 'Target achieved' : 'In progress', skill.currentLevel, skill.targetLevel, '', '', '']),
+    ...certifications.map((certificate) => ['Certification', 'Acquired skills', certificate.issuedOn || '', certificate.name, certificate.issuer || '', '', '', '', certificate.expiresOn || '', '']),
+    ...plans.map((plan) => ['Growth plan', 'Growth', plan.dueDate || '', plan.goal, plan.status || 'Planned', '', '', '', '', plan.actionPlan || ''])
   ];
-  downloadReportCsv(reportFilename(`employee-${employee.name}`), ['Record type', 'Employee', 'Department', 'Date', 'Score', 'Status', 'Due date', 'Result', 'Passed date', 'Notes'], rows);
+  downloadReportCsv(reportFilename(`employee-${employee.name}`), ['Record type', 'Section', 'Date', 'Name / quarter', 'Status / result', 'Score / level', 'Previous result / target', 'Progress / previous quarter', 'Due date / expiry', 'Details'], rows);
 });
 
 document.querySelectorAll('[data-module]:not(.qbel-nav-link)').forEach((button) => button.addEventListener('click', () => showModule(button.dataset.module)));
@@ -1903,14 +1971,15 @@ document.addEventListener('click', (event) => { if (!event.target.closest('.row-
 
 function updateHeaderDate() {
   const dateElement = document.querySelector('#todayDate');
-  if (!dateElement) return;
-
-  dateElement.textContent = new Date().toLocaleDateString('en-US', {
+  const reportsDateElement = document.querySelector('#reportsTodayDate');
+  const formattedDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   });
+  if (dateElement) dateElement.textContent = formattedDate;
+  if (reportsDateElement) reportsDateElement.textContent = formattedDate;
 }
 
 updateHeaderDate();

@@ -275,21 +275,26 @@ const moduleHome = document.querySelector('#moduleHome');
 const evaluationsShell = document.querySelector('#evaluationsShell');
 const employeesShell = document.querySelector('#employeesShell');
 const developmentShell = document.querySelector('#developmentShell');
+const reportsShell = document.querySelector('#reportsShell');
 
 function showModule(moduleName) {
   const isHome = moduleName === 'home';
   const isEvaluations = moduleName === 'evaluations';
   const isEmployees = moduleName === 'employees';
   const isDevelopment = moduleName === 'development';
+  const isReports = moduleName === 'reports';
   moduleHome?.classList.toggle('active', isHome);
   evaluationsShell?.classList.toggle('module-hidden', !isEvaluations);
   employeesShell?.classList.toggle('module-hidden', !isEmployees);
   developmentShell?.classList.toggle('module-hidden', !isDevelopment);
+  reportsShell?.classList.toggle('module-hidden', !isReports);
   moduleHome?.setAttribute('aria-hidden', String(!isHome));
   evaluationsShell?.setAttribute('aria-hidden', String(!isEvaluations));
   employeesShell?.setAttribute('aria-hidden', String(!isEmployees));
   developmentShell?.setAttribute('aria-hidden', String(!isDevelopment));
+  reportsShell?.setAttribute('aria-hidden', String(!isReports));
   if (isEvaluations) switchTab('dashboard');
+  else if (isReports) switchTab('reports');
   else syncSidebarNav(moduleName, null);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -297,6 +302,7 @@ function showModule(moduleName) {
 function syncSidebarNav(moduleName, tabName) {
   document.querySelectorAll('.qbel-nav-link[data-module="employees"]').forEach((link) => link.classList.toggle('active', moduleName === 'employees'));
   document.querySelectorAll('.qbel-nav-link[data-module="evaluations"][data-tab]').forEach((link) => link.classList.toggle('active', moduleName === 'evaluations' && link.dataset.tab === tabName));
+  document.querySelectorAll('.qbel-nav-link[data-module="reports"]').forEach((link) => link.classList.toggle('active', moduleName === 'reports'));
 }
 
 function withDevelopmentFrame(callback, attempt = 0) {
@@ -1646,7 +1652,7 @@ document.querySelector('#saveEvaluation').addEventListener('click', () => {
 });
 function switchTab(tabName) {
   document.querySelectorAll('[data-tab-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.tabPanel === tabName));
-  syncSidebarNav('evaluations', tabName);
+  syncSidebarNav(tabName === 'reports' ? 'reports' : 'evaluations', tabName);
   if (tabName === 'reports') void refreshReportData();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1903,14 +1909,15 @@ document.addEventListener('click', (event) => { if (!event.target.closest('.row-
 
 function updateHeaderDate() {
   const dateElement = document.querySelector('#todayDate');
-  if (!dateElement) return;
-
-  dateElement.textContent = new Date().toLocaleDateString('en-US', {
+  const reportsDateElement = document.querySelector('#reportsTodayDate');
+  const formattedDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   });
+  if (dateElement) dateElement.textContent = formattedDate;
+  if (reportsDateElement) reportsDateElement.textContent = formattedDate;
 }
 
 updateHeaderDate();
