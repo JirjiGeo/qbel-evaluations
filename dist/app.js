@@ -1393,12 +1393,14 @@ function renderEmployeeProfileSections(modalElement, employee) {
 }
 function loadEmployeeAssets() { try { return JSON.parse(localStorage.getItem('qbel-operations-assets') || '[]'); } catch (error) { return []; } }
 const assetCloudLoads = new Set();
+const assetCloudLoaded = new Set();
 async function loadEmployeeAssetsFromCloud(modalElement, employee) {
-  if (!window.supabaseClient || !isCloudId(employee.id) || assetCloudLoads.has(employee.id)) return;
+  if (!window.supabaseClient || !isCloudId(employee.id) || assetCloudLoads.has(employee.id) || assetCloudLoaded.has(employee.id)) return;
   assetCloudLoads.add(employee.id);
   const { data, error } = await window.supabaseClient.from('employee_assets').select('*').eq('employee_id', employee.id).order('created_at', { ascending: true });
   assetCloudLoads.delete(employee.id);
   if (error) { console.error('Could not load employee assets', error); return; }
+  assetCloudLoaded.add(employee.id);
   if (!data?.length) return;
   const otherAssets = loadEmployeeAssets().filter((asset) => asset.employeeId !== employee.id);
   const cloudAssets = (data || []).map((asset) => ({ id: asset.id, employeeId: asset.employee_id, assetType: asset.asset_type, description: asset.description, serialNumber: asset.serial_asset_no, dateIssued: asset.date_issued, dateReturned: asset.date_returned || '', handover: asset.handover_form_name ? { name: asset.handover_form_name, dataUrl: asset.handover_form_data } : null }));
