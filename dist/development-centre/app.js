@@ -273,7 +273,17 @@ function renderResources() {
   const department = $('#libraryDepartment').value;
   const filtered = resources.filter((resource) => (department === 'all' || resource.department === department) && resource.category === activeResourceCategory);
   if (selectedResourceId && !filtered.some((resource) => resource.id === selectedResourceId)) closeResourcePreview();
-  $('#resourceList').innerHTML = filtered.length ? `<div class="resource-button-list">${filtered.map((resource) => `<article class="resource-card${resource.id === selectedResourceId ? ' selected' : ''}"><div><button class="resource-title-button" data-preview-resource="${escapeHtml(resource.id)}" aria-pressed="${resource.id === selectedResourceId}" type="button"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><span><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.fileName)} · ${escapeHtml(resource.department)}</small></span></button></div><button class="row-action" data-delete-resource="${escapeHtml(resource.id)}" type="button">Delete</button></article>`).join('')}</div>` : `<div class="empty-state">No ${escapeHtml(activeResourceCategory.toLowerCase())} match this department. Add one to begin.</div>`;
+  $('#resourceList').innerHTML = filtered.length ? `<div class="resource-button-list">${filtered.map((resource) => {
+    const outcomes = assignments.filter((assignment) => assignment.resourceId === resource.id).reduce((counts, assignment) => {
+      if (assignment.resultStatus === 'Passed') counts.passed += 1;
+      if (assignment.resultStatus === 'Failed') counts.failed += 1;
+      return counts;
+    }, { passed: 0, failed: 0 });
+    const resultSummary = ['Courses', 'Trainings', 'Tests'].includes(resource.category)
+      ? `<small class="resource-result-counts">Results · Passed: ${outcomes.passed} · Failed: ${outcomes.failed}</small>`
+      : '';
+    return `<article class="resource-card${resource.id === selectedResourceId ? ' selected' : ''}"><div><button class="resource-title-button" data-preview-resource="${escapeHtml(resource.id)}" aria-pressed="${resource.id === selectedResourceId}" type="button"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><span><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.fileName)} · ${escapeHtml(resource.department)}</small>${resultSummary}</span></button></div><button class="row-action" data-delete-resource="${escapeHtml(resource.id)}" type="button">Delete</button></article>`;
+  }).join('')}</div>` : `<div class="empty-state">No ${escapeHtml(activeResourceCategory.toLowerCase())} match this department. Add one to begin.</div>`;
 }
 function renderAssignmentOptions() {
   const employeeOptions = employees().map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)} · ${escapeHtml(employee.department)}</option>`).join('');
