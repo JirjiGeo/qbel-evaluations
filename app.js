@@ -1465,6 +1465,8 @@ function showEmployeeScores(employee) {
     modalElement.id = 'scoreHistoryModal';
     modalElement.className = 'modal-backdrop open';
     modalElement.innerHTML = '<section class="evaluation-modal score-history-modal" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle"><button class="close-button" id="closeScoreHistory" aria-label="Close employee profile">×</button><span class="section-kicker">Employee profile</span><h2 id="scoreHistoryTitle"></h2><p class="score-history-subtitle"></p><div class="employee-profile-tabs"><button type="button" class="employee-profile-tab active" data-profile-tab="evaluations">Evaluations</button><button type="button" class="employee-profile-tab" data-profile-tab="learning">Learning journey</button><button type="button" class="employee-profile-tab" data-profile-tab="assets">Assigned assets</button><button type="button" class="employee-profile-tab" data-profile-tab="documents">Documents</button></div><div class="employee-profile-panel active" data-profile-panel="evaluations"><div class="score-history-list"></div></div><div class="employee-profile-panel" data-profile-panel="learning"><div class="profile-panel-header"><span class="profile-panel-title">Assigned training</span><button type="button" class="profile-open-portal-button" data-open-learning-portal>Open learning path in Development Centre →</button></div><div class="employee-learning-profile"></div></div><div class="employee-profile-panel" data-profile-panel="assets"><div class="employee-assets-profile"></div></div><div class="employee-profile-panel" data-profile-panel="documents"><div class="employee-documents-profile"></div></div></section>';
+    modalElement.querySelector('.employee-profile-tabs').insertAdjacentHTML('beforeend', '<button type="button" class="employee-profile-tab" data-profile-tab="development">Development</button>');
+    modalElement.querySelector('.employee-profile-panel[data-profile-panel="documents"]').insertAdjacentHTML('afterend', '<div class="employee-profile-panel" data-profile-panel="development"><div class="employee-development-profile"><section><h3>Development plans</h3><div class="development-plan-records"></div></section><section><h3>Exam results</h3><div class="development-exam-records"></div></section><section><h3>Training impact</h3><div class="development-impact-records"></div></section></div></div>');
     document.body.appendChild(modalElement);
     const style = document.createElement('style');
     style.textContent = '.score-history-modal{width:min(920px,100%);max-height:92vh;overflow:auto}.score-history-subtitle{color:var(--muted);font-size:12px}.score-history-list{display:grid;gap:10px;margin-top:20px}.score-history-row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.score-history-row strong{font:600 18px "Space Grotesk";color:var(--brand)}.score-history-row small{display:block;color:var(--muted);margin-top:4px}.score-history-score{font:700 22px "Space Grotesk";color:var(--brand);white-space:nowrap}.score-history-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.score-history-actions button{border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--brand);font-size:10px;font-weight:700;padding:7px 9px}.score-history-actions button:hover{background:#f3f7f4}.score-history-actions button[data-history-action="delete"]{color:#b85c52}.score-history-empty{padding:20px;text-align:center;background:#fafafa;color:var(--muted)}@media(max-width:760px){.score-history-row{grid-template-columns:1fr}.score-history-actions{justify-content:flex-start}}';
@@ -1472,6 +1474,9 @@ function showEmployeeScores(employee) {
     const profileStyle = document.createElement('style');
     profileStyle.textContent = '.employee-profile-tabs{display:flex;gap:7px;margin:20px 0 16px;border-bottom:1px solid var(--line)}.employee-profile-tab{padding:9px 11px;background:transparent;color:var(--muted);font-size:11px;font-weight:700;border-bottom:2px solid transparent}.employee-profile-tab.active{color:var(--brand);border-color:var(--brand)}.employee-profile-panel{display:none}.employee-profile-panel.active{display:block}.employee-learning-profile,.employee-assets-profile{display:grid;gap:8px}.profile-record{display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:center;padding:13px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.profile-record strong{font-size:12px}.profile-record small{color:var(--muted);font-size:10px}.profile-status{grid-row:1/3;grid-column:2;padding:5px 8px;border-radius:999px;background:#fff1df;color:#a76c21;font-size:10px;font-weight:700}.profile-status.complete{background:#e3f3e8;color:#26804c}.assets-toolbar,.asset-form-actions,.asset-actions,.handover-actions{display:flex;align-items:center;justify-content:space-between;gap:8px}.asset-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:15px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.asset-form-grid label{display:grid;gap:6px;color:var(--muted);font-size:10px;font-weight:700}.asset-form-grid input,.asset-form-grid select{width:100%;height:36px;padding:0 9px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font-size:11px}.asset-form-actions{justify-content:flex-end;margin:2px 0 4px}.asset-detail{padding:15px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.asset-detail>div:first-child{display:flex;justify-content:space-between;align-items:center}.asset-detail p{color:var(--muted);font-size:11px;line-height:1.6}.asset-detail .profile-document-pdf{display:block;width:100%;height:600px;border:0;margin-top:10px}.asset-form-grid+.asset-form-actions{display:flex}.profile-status.complete{background:#e3f3e8;color:#26804c}@media(max-width:760px){.employee-profile-tabs{overflow:auto}.employee-profile-tab{white-space:nowrap}.profile-record{grid-template-columns:1fr}.profile-status{grid-row:auto;grid-column:auto;width:max-content}.asset-form-grid{grid-template-columns:1fr}.asset-actions{justify-content:flex-start;flex-wrap:wrap}}';
     document.head.appendChild(profileStyle);
+    const developmentStyle = document.createElement('style');
+    developmentStyle.textContent = '.employee-development-profile{display:grid;gap:22px}.employee-development-profile h3{margin:0 0 9px;font-size:13px}.development-record-list{display:grid;gap:8px}.development-record{display:grid;gap:5px;padding:12px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.development-record strong{font-size:12px}.development-record small,.development-record p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}.development-record p{white-space:pre-wrap}.development-record-status{justify-self:start;padding:4px 7px;border-radius:999px;background:#e3f3e8;color:#26804c;font-size:10px;font-weight:700}.development-record-status.attention{background:#fff1df;color:#a76c21}';
+    document.head.appendChild(developmentStyle);
     document.querySelector('#closeScoreHistory').addEventListener('click', () => modalElement.remove());
     modalElement.querySelectorAll('[data-profile-tab]').forEach((tab) => tab.addEventListener('click', () => {
       modalElement.querySelectorAll('[data-profile-tab]').forEach((item) => item.classList.toggle('active', item === tab));
@@ -1578,6 +1583,59 @@ function renderEmployeeProfileSections(modalElement, employee) {
   const employeeDocuments = employee.documents || [];
   modalElement._profileDocuments = employeeDocuments;
   modalElement.querySelector('.employee-documents-profile').innerHTML = employeeDocuments.length ? employeeDocuments.map((document, index) => `<article class="profile-record"><div><strong>${escapeHtml(document.name)}</strong><small>Attached employee document</small></div><div class="profile-document-actions"><button type="button" class="row-actions-button" data-profile-document="${index}">View PDF</button><a class="row-actions-button" href="${document.dataUrl || '#'}" download="${escapeHtml(document.name)}">Download</a></div></article>`).join('') : '<div class="score-history-empty">No attached documents for this employee.</div>';
+  void loadEmployeeDevelopmentProfile(modalElement, employee);
+}
+async function loadEmployeeDevelopmentProfile(modalElement, employee) {
+  const sections = {
+    plans: modalElement.querySelector('.development-plan-records'),
+    exams: modalElement.querySelector('.development-exam-records'),
+    impact: modalElement.querySelector('.development-impact-records')
+  };
+  Object.values(sections).forEach((section) => { section.className = 'development-record-list'; section.innerHTML = '<div class="score-history-empty">Loading records...</div>'; });
+  const renderRecords = (section, records, markup) => {
+    if (document.body.contains(modalElement) && modalElement._profileEmployee?.id === employee.id) {
+      section.innerHTML = records.length ? records.map(markup).join('') : '<div class="score-history-empty">No records yet.</div>';
+    }
+  };
+  const client = window.supabaseClient;
+  if (!client || !isCloudId(employee.id)) {
+    Object.values(sections).forEach((section) => { section.innerHTML = '<div class="score-history-empty">No records yet.</div>'; });
+    return;
+  }
+  try {
+    const [planResult, assignmentResult] = await Promise.all([
+      client.from('development_plans').select('goal, action_plan, due_date, status').eq('employee_id', employee.id).order('due_date', { ascending: true }),
+      client.from('training_assignments').select('id, resource_id').eq('employee_id', employee.id)
+    ]);
+    if (planResult.error) throw planResult.error;
+    if (assignmentResult.error) throw assignmentResult.error;
+    const assignments = assignmentResult.data || [];
+    const assignmentIds = assignments.map((assignment) => assignment.id);
+    let assessments = [];
+    let impacts = [];
+    let resources = [];
+    if (assignmentIds.length) {
+      const resourceIds = [...new Set(assignments.map((assignment) => assignment.resource_id).filter(Boolean))];
+      const results = await Promise.all([
+        client.from('training_assessment_results').select('assignment_id, attempted_on, score, pass_mark, passed, notes').in('assignment_id', assignmentIds).order('attempted_on', { ascending: false }),
+        client.from('training_impact_records').select('assignment_id, measure, before_value, after_value, measured_on, notes').in('assignment_id', assignmentIds).order('measured_on', { ascending: false }),
+        resourceIds.length ? client.from('development_resources').select('id, title').in('id', resourceIds) : Promise.resolve({ data: [], error: null })
+      ]);
+      if (results.some((result) => result.error)) throw results.find((result) => result.error).error;
+      [assessments, impacts, resources] = results.map((result) => result.data || []);
+    }
+    if (!document.body.contains(modalElement) || modalElement._profileEmployee?.id !== employee.id) return;
+    const assignmentMap = new Map(assignments.map((assignment) => [assignment.id, assignment]));
+    const resourceMap = new Map(resources.map((resource) => [resource.id, resource.title]));
+    renderRecords(sections.plans, planResult.data || [], (record) => `<article class="development-record"><strong>${escapeHtml(record.goal)}</strong><p>${escapeHtml(record.action_plan)}</p><small>Due ${escapeHtml(record.due_date || 'No date')}</small><span class="development-record-status${record.status === 'On hold' ? ' attention' : ''}">${escapeHtml(record.status || 'Planned')}</span></article>`);
+    renderRecords(sections.exams, assessments, (record) => `<article class="development-record"><strong>${escapeHtml(resourceMap.get(assignmentMap.get(record.assignment_id)?.resource_id) || 'Training assessment')}</strong><small>Attempted ${escapeHtml(record.attempted_on || 'Date not recorded')} · Score ${escapeHtml(record.score)}% · Pass mark ${escapeHtml(record.pass_mark)}%</small><span class="development-record-status${record.passed ? '' : ' attention'}">${record.passed ? 'Passed' : 'Not passed'}</span>${record.notes ? `<p>${escapeHtml(record.notes)}</p>` : ''}</article>`);
+    renderRecords(sections.impact, impacts, (record) => `<article class="development-record"><strong>${escapeHtml(record.measure)}</strong><small>${escapeHtml(resourceMap.get(assignmentMap.get(record.assignment_id)?.resource_id) || 'Training activity')} · Measured ${escapeHtml(record.measured_on || 'Date not recorded')}</small><p>${escapeHtml(record.before_value)} → ${escapeHtml(record.after_value)}</p>${record.notes ? `<p>${escapeHtml(record.notes)}</p>` : ''}</article>`);
+  } catch (error) {
+    console.error('Employee development records could not be loaded:', error);
+    if (document.body.contains(modalElement) && modalElement._profileEmployee?.id === employee.id) {
+      Object.values(sections).forEach((section) => { section.innerHTML = '<div class="score-history-empty">Development records could not be loaded.</div>'; });
+    }
+  }
 }
 function loadEmployeeAssets() { try { return JSON.parse(localStorage.getItem('qbel-operations-assets') || '[]'); } catch (error) { return []; } }
 const assetCloudLoads = new Set();

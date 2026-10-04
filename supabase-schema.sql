@@ -135,7 +135,12 @@ create table if not exists public.employee_certifications (
 );
 
 alter table public.employee_certifications
-  add column if not exists training_assignment_id uuid references public.training_assignments(id) on delete set null;
+  add column if not exists training_assignment_id uuid;
+alter table public.employee_certifications
+  drop constraint if exists employee_certifications_training_assignment_id_fkey;
+alter table public.employee_certifications
+  add constraint employee_certifications_training_assignment_id_fkey
+  foreign key (training_assignment_id) references public.training_assignments(id) on delete cascade;
 
 create table if not exists public.training_assessment_results (
   id uuid primary key default gen_random_uuid(),

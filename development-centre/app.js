@@ -402,7 +402,200 @@ $('#assignmentForm').addEventListener('submit', async (event) => {
     notify(`Development activity could not be saved: ${error.message || 'Supabase rejected the request.'}`);
   }
 });
-document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); const resourceId = resourceButton.dataset.deleteResource; const resource = resources.find((item) => item.id === resourceId); if (client && !resourceId.startsWith('resource-')) { if (resource?.filePath) { const { error } = await client.storage.from(resourceBucket).remove([resource.filePath]); if (error) { console.error('Resource file deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } const { error } = await client.from('development_resources').delete().eq('id', resourceId); if (error) { console.error('Resource deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } resources = resources.filter((item) => item.id !== resourceId); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
+async function deleteAllLearningCenterData() {
+  const client = cloudClient();
+  if (!client) throw new Error('Sign in to Supabase before deleting all Learning Centre records.');
+  const [{ data: resourcesWithFiles, error: resourceLookupError }, { data: certificatesWithFiles, error: certificateLookupError }] = await Promise.all([
+    client.from('development_resources').select('id, file_path'),
+    client.from('employee_certifications').select('id, file_path')
+  ]);
+  if (resourceLookupError) throw resourceLookupError;
+  if (certificateLookupError) throw certificateLookupError;
+  const resourcePaths = (resourcesWithFiles || []).map((resource) => resource.file_path).filter(Boolean);
+  const certificatePaths = (certificatesWithFiles || []).map((certificate) => certificate.file_path).filter(Boolean);
+  if (resourcePaths.length) {
+    const { error } = await client.storage.from(resourceBucket).remove(resourcePaths);
+    if (error) throw error;
+  }
+  if (certificatePaths.length) {
+    const { error } = await client.storage.from('development-certificates').remove(certificatePaths);
+    if (error) throw error;
+  }
+  for (const table of ['employee_certifications', 'development_plans', 'development_skills', 'training_assignments', 'development_resources']) {
+    const { data, error: lookupError } = await client.from(table).select('id');
+    if (lookupError) throw lookupError;
+    const ids = (data || []).map((record) => record.id);
+    if (ids.length) {
+      const { error } = await client.from(table).delete().in('id', ids);
+      if (error) throw error;
+    }
+  }
+  resources = [];
+  assignments = [];
+  save();
+  renderResources();
+  renderAssignmentOptions();
+  renderTracker();
+  renderEmployeeLearning();
+  window.dispatchEvent(new Event('development-modules-refresh'));
+}
+
+async function deleteTrainingAssignments(assignmentIds) {
+  const ids = new Set(assignmentIds);
+  const client = cloudClient();
+  const cloudIds = [...ids].filter((id) => !String(id).startsWith('training-'));
+  if (client && cloudIds.length) {
+    const { error: certificateError } = await client.from('employee_certifications').delete().in('training_assignment_id', cloudIds);
+    if (certificateError) throw certificateError;
+    const { error } = await client.from('training_assignments').delete().in('id', cloudIds);
+    if (error) throw error;
+  }
+  assignments = assignments.filter((assignment) => !ids.has(assignment.id));
+  save();
+  renderTracker();
+  renderEmployeeLearning();
+  window.dispatchEvent(new Event('development-modules-refresh'));
+}
+
+async function deleteDevelopmentResources(resourceIds) {
+  const ids = new Set(resourceIds);
+  const client = cloudClient();
+  const cloudIds = [...ids].filter((id) => !String(id).startsWith('resource-'));
+  const cloudResources = resources.filter((resource) => cloudIds.includes(resource.id));
+  if (client && cloudIds.length) {
+    const { data: linkedAssignments, error: assignmentLookupError } = await client.from('training_assignments').select('id').in('resource_id', cloudIds);
+    if (assignmentLookupError) throw assignmentLookupError;
+    const assignmentIds = (linkedAssignments || []).map((assignment) => assignment.id);
+    if (assignmentIds.length) {
+      const { error } = await client.from('employee_certifications').delete().in('training_assignment_id', assignmentIds);
+      if (error) throw error;
+    }
+    const { error } = await client.from('development_resources').delete().in('id', cloudIds);
+    if (error) throw error;
+    const filePaths = cloudResources.map((resource) => resource.filePath).filter(Boolean);
+    if (filePaths.length) {
+      const { error: storageError } = await client.storage.from(resourceBucket).remove(filePaths);
+      if (storageError) console.error('Resource file cleanup failed:', storageError);
+    }
+  }
+  resources = resources.filter((resource) => !ids.has(resource.id));
+  assignments = assignments.filter((assignment) => !ids.has(assignment.resourceId));
+  save();
+  renderResources();
+  renderAssignmentOptions();
+  renderTracker();
+  renderEmployeeLearning();
+  closeResourcePreview();
+  window.dispatchEvent(new Event('development-modules-refresh'));
+}
+
+async function deleteEmployeeLearning(employeeId) {
+  const employee = employees().find((item) => item.id === employeeId);
+  if (!employee) return;
+  const client = cloudClient();
+  if (client && !String(employeeId).startsWith('employee-')) {
+    const { data: certificates, error: certificateLookupError } = await client.from('employee_certifications').select('file_path').eq('employee_id', employeeId);
+    if (certificateLookupError) throw certificateLookupError;
+    const certificatePaths = (certificates || []).map((certificate) => certificate.file_path).filter(Boolean);
+    if (certificatePaths.length) {
+      const { error } = await client.storage.from('development-certificates').remove(certificatePaths);
+      if (error) throw error;
+    }
+    for (const table of ['employee_certifications', 'development_plans', 'development_skills', 'training_assignments']) {
+      const { error } = await client.from(table).delete().eq('employee_id', employeeId);
+      if (error) throw error;
+    }
+  }
+  assignments = assignments.filter((assignment) => assignment.employeeId !== employeeId);
+  save();
+  renderTracker();
+  renderEmployeeLearning();
+  window.dispatchEvent(new Event('development-modules-refresh'));
+}
+
+document.addEventListener('click', async (event) => {
+  const clearCenterButton = event.target.closest('[data-delete-all-center]');
+  if (clearCenterButton) {
+    if (!window.confirm('Delete all Learning Centre records for all employees? This removes every resource, plan, skill assessment, certificate, training assignment, exam result, and training impact record. Employee profiles will remain. This cannot be undone.')) return;
+    try {
+      await deleteAllLearningCenterData();
+      notify('All Learning Centre records have been deleted.');
+    } catch (error) {
+      console.error('Learning Centre reset failed:', error);
+      notify(`Delete failed: ${error.message}`);
+    }
+  }
+  const clearEmployeeButton = event.target.closest('[data-delete-all-employee-learning]');
+  if (clearEmployeeButton) {
+    const employeeId = $('#learningEmployeeSelect').value;
+    const employee = employees().find((item) => item.id === employeeId);
+    if (!employee) return notify('Select an employee first.');
+    const assignmentCount = assignments.filter((assignment) => assignment.employeeId === employeeId).length;
+    if (!window.confirm(`Delete all learning records for ${employee.name}? This removes plans, skills, certificates, assigned training, exam results, and training impact. This cannot be undone.`)) return;
+    try {
+      await deleteEmployeeLearning(employeeId);
+      notify(`Deleted all learning records for ${employee.name} (${assignmentCount} assigned activities).`);
+    } catch (error) {
+      console.error('Employee learning deletion failed:', error);
+      notify(`Delete failed: ${error.message}`);
+    }
+  }
+  const clearResourcesButton = event.target.closest('[data-delete-all-resources]');
+  if (clearResourcesButton) {
+    const categoryResources = resources.filter((resource) => resource.category === activeResourceCategory);
+    if (!categoryResources.length) return notify(`No ${activeResourceCategory.toLowerCase()} to delete.`);
+    if (!window.confirm(`Delete all ${categoryResources.length} ${activeResourceCategory.toLowerCase()} resources and their linked training records? This cannot be undone.`)) return;
+    try {
+      await deleteDevelopmentResources(categoryResources.map((resource) => resource.id));
+      notify(`Deleted all ${activeResourceCategory.toLowerCase()} resources and linked records.`);
+    } catch (error) {
+      console.error('Resource deletion failed:', error);
+      notify(`Delete failed: ${error.message}`);
+    }
+  }
+  const clearQuarterButton = event.target.closest('[data-delete-all-quarter]');
+  if (clearQuarterButton) {
+    const quarterAssignments = assignments.filter((assignment) => assignmentQuarter(assignment) === selectedQuarter);
+    if (!quarterAssignments.length) return notify('No training assignments in this quarter.');
+    if (!window.confirm(`Delete all ${quarterAssignments.length} training assignments in ${quarterLabel(selectedQuarter)} and their linked certificates, exam results, and impact records? This cannot be undone.`)) return;
+    try {
+      await deleteTrainingAssignments(quarterAssignments.map((assignment) => assignment.id));
+      notify(`Deleted all training assignments for ${quarterLabel(selectedQuarter)}.`);
+    } catch (error) {
+      console.error('Training assignment deletion failed:', error);
+      notify(`Delete failed: ${error.message}`);
+    }
+  }
+  const previewButton = event.target.closest('[data-preview-resource]');
+  if (previewButton) {
+    const resource = resources.find((item) => item.id === previewButton.dataset.previewResource);
+    if (resource) previewResource(resource);
+  }
+  const closePreviewButton = event.target.closest('[data-close-preview]');
+  if (closePreviewButton) closeResourcePreview();
+  const resourceButton = event.target.closest('[data-delete-resource]');
+  if (resourceButton) {
+    const resourceId = resourceButton.dataset.deleteResource;
+    try {
+      await deleteDevelopmentResources([resourceId]);
+      notify('Resource and linked training records deleted.');
+    } catch (error) {
+      console.error('Resource deletion failed:', error);
+      notify(`Delete failed: ${error.message}`);
+    }
+  }
+  const assignmentButton = event.target.closest('[data-delete-assignment]');
+  if (assignmentButton) {
+    const assignmentId = assignmentButton.dataset.deleteAssignment;
+    try {
+      await deleteTrainingAssignments([assignmentId]);
+      notify('Assignment and linked records deleted.');
+    } catch (error) {
+      console.error('Assignment deletion failed:', error);
+      notify(`Delete failed: ${error.message}`);
+    }
+  }
+});
 document.addEventListener('click', (event) => {
   const resourceButton = event.target.closest('[data-open-learning-resource]');
   if (resourceButton) void openLearningResource(resourceButton.dataset.openLearningResource);

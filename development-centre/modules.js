@@ -405,6 +405,27 @@ async function deleteDevelopmentRecord(kind, id) {
   moduleNotify('Development record deleted.');
 }
 
+async function deleteAllDevelopmentRecords(kind) {
+  const client = moduleClient();
+  const records = moduleRows[kind];
+  if (!client || !moduleTables[kind] || !records?.length) return moduleNotify('There are no records to delete in this tab.');
+  if (!window.confirm(`Delete all ${records.length} ${kind === 'assessments' ? 'exam results' : kind} records in this tab? This cannot be undone.`)) return;
+  if (kind === 'certificates') {
+    const filePaths = records.map((record) => record.file_path).filter(Boolean);
+    if (filePaths.length) {
+      const { error } = await client.storage.from(moduleBucket).remove(filePaths);
+      if (error) return moduleNotify(`Certificate files could not be deleted: ${error.message}`);
+    }
+  }
+  const ids = records.map((record) => record.id);
+  const { error } = await client.from(moduleTables[kind]).delete().in('id', ids);
+  if (error) return moduleNotify(`Could not delete records: ${error.message}`);
+  moduleRows[kind] = [];
+  renderDevelopmentModules();
+  window.dispatchEvent(new Event('development-modules-refresh'));
+  moduleNotify(`Deleted all ${records.length} ${kind === 'assessments' ? 'exam results' : kind} records.`);
+}
+
 function certificateTitleMarkup(record) {
   return `<button class="document-title-button" type="button" data-open-certificate="${moduleEscape(record.id)}" aria-label="Open ${moduleEscape(record.certificate_name)}"><strong>${moduleEscape(record.certificate_name)}</strong></button>`;
 }
@@ -472,6 +493,8 @@ document.querySelectorAll('[data-add-module]').forEach((button) => button.addEve
 document.querySelectorAll('[data-close-module-modal]').forEach((button) => button.addEventListener('click', closeDevelopmentRecordForm));
 module$('#developmentRecordForm').addEventListener('submit', saveDevelopmentRecord);
 document.addEventListener('click', (event) => {
+  const deleteAllButton = event.target.closest('[data-delete-all-module]');
+  if (deleteAllButton) void deleteAllDevelopmentRecords(deleteAllButton.dataset.deleteAllModule);
   const openButton = event.target.closest('[data-open-certificate]');
   if (openButton) void openDevelopmentCertificate(openButton.dataset.openCertificate);
   const editButton = event.target.closest('[data-edit-module]');
