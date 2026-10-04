@@ -236,6 +236,62 @@ body .main-content .employee-grid { grid-template-columns: repeat(auto-fill, min
 body .development-app :is(.dashboard-grid, .employee-portal-layout, .library-layout, .portal-detail-grid) { gap: 24px; }
 body .development-app .module-panel .view-heading { margin-bottom: 20px; }
 
+body .development-app #libraryView .resource-list { display: block; }
+body .development-app #libraryView .resource-button-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 16px;
+}
+body .development-app #libraryView .resource-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid var(--workspace-line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+body .development-app #libraryView .resource-card > div { min-width: 0; }
+body .development-app #libraryView .resource-title-button {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 96px;
+  padding: 0;
+}
+body .development-app #libraryView .resource-title-button > span:last-child { min-width: 0; gap: 8px; }
+body .development-app #libraryView .resource-title-button :is(strong, small) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+body .development-app #libraryView .resource-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 48px;
+  border-radius: 6px;
+  background: #edf2ef;
+  color: var(--workspace-green);
+  font: 700 10px var(--workspace-body);
+}
+body .development-app #libraryView .resource-card:hover { border-color: #8caf9a; }
+body .development-app #libraryView .resource-card.selected {
+  border-color: var(--workspace-green);
+  background: #eaf4ed;
+  box-shadow: inset 3px 0 var(--workspace-green);
+}
+body .development-app #libraryView .resource-card.selected .resource-icon {
+  background: var(--workspace-green);
+  color: #fff;
+}
+
 body .qbel-nav .qbel-nav-link {
   display: flex;
   align-items: center;

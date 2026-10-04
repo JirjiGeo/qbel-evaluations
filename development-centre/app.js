@@ -5,6 +5,7 @@ const resourceBucket = 'development-resources';
 let resources = JSON.parse(localStorage.getItem(libraryKey) || '[]');
 let assignments = JSON.parse(localStorage.getItem(trainingKey) || '[]');
 let activeResourceCategory = 'Job descriptions';
+let selectedResourceId = null;
 let selectedQuarter = currentQuarterKey();
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
@@ -228,23 +229,28 @@ function docxXmlToHtml(xml) {
 }
 async function previewResource(resource) {
   const preview = $('#resourcePreview');
+  selectResource(resource.id);
   preview.hidden = false;
   preview.innerHTML = `<div class="preview-loading">Loading document...</div>`;
   try {
     await loadResourceFile(resource);
   } catch (error) {
+    if (selectedResourceId !== resource.id) return;
     closeResourcePreview();
     notify('Resource file could not be loaded from Supabase.');
     return;
   }
+  if (selectedResourceId !== resource.id) return;
   preview.innerHTML = `<div class="resource-preview-header"><div><span class="eyebrow">Document preview</span><strong>${escapeHtml(resource.title)}</strong></div><div class="preview-actions"><a class="preview-download" href="${resource.dataUrl}" download="${escapeHtml(resource.fileName)}">Download</a><button class="row-action" type="button" data-close-preview>Close</button></div></div><div class="preview-loading">Preparing document preview...</div>`;
   if (isPdf(resource)) {
     preview.insertAdjacentHTML('beforeend', `<object class="resource-pdf" data="${resource.dataUrl}" type="application/pdf"><p>PDF preview is unavailable in this browser.</p></object>`);
   } else if (/\.docx$/i.test(resource.fileName)) {
     try {
       const xml = await readDocxDocument(resource.dataUrl);
+      if (selectedResourceId !== resource.id) return;
       preview.querySelector('.preview-loading').outerHTML = `<article class="docx-preview">${docxXmlToHtml(xml) || '<p>This Word document has no readable text.</p>'}</article>`;
     } catch (error) {
+      if (selectedResourceId !== resource.id) return;
       preview.querySelector('.preview-loading').outerHTML = officeFallback(resource);
     }
   } else {
@@ -253,12 +259,21 @@ async function previewResource(resource) {
   preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function officeFallback(resource) { return `<div class="office-preview"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><h3>${escapeHtml(resource.fileName)}</h3><p>This file format cannot be rendered directly in the browser. You can still download the original file.</p><a class="primary-button" href="${resource.dataUrl}" download="${escapeHtml(resource.fileName)}">Download file</a></div>`; }
-function closeResourcePreview() { const preview = $('#resourcePreview'); preview.hidden = true; preview.innerHTML = ''; }
+function selectResource(resourceId) {
+  selectedResourceId = resourceId;
+  document.querySelectorAll('[data-preview-resource]').forEach((button) => {
+    const selected = button.dataset.previewResource === resourceId;
+    button.setAttribute('aria-pressed', String(selected));
+    button.closest('.resource-card').classList.toggle('selected', selected);
+  });
+}
+function closeResourcePreview() { const preview = $('#resourcePreview'); preview.hidden = true; preview.innerHTML = ''; selectResource(null); }
 
 function renderResources() {
   const department = $('#libraryDepartment').value;
   const filtered = resources.filter((resource) => (department === 'all' || resource.department === department) && resource.category === activeResourceCategory);
-  $('#resourceList').innerHTML = filtered.length ? `<div class="resource-button-list">${filtered.map((resource) => `<article class="resource-card"><div><button class="resource-title-button" data-preview-resource="${resource.id}" type="button"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><span><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.fileName)} · ${escapeHtml(resource.department)}</small></span></button></div><button class="row-action" data-delete-resource="${resource.id}" type="button">Delete</button></article>`).join('')}</div>` : `<div class="empty-state">No ${escapeHtml(activeResourceCategory.toLowerCase())} match this department. Add one to begin.</div>`;
+  if (selectedResourceId && !filtered.some((resource) => resource.id === selectedResourceId)) closeResourcePreview();
+  $('#resourceList').innerHTML = filtered.length ? `<div class="resource-button-list">${filtered.map((resource) => `<article class="resource-card${resource.id === selectedResourceId ? ' selected' : ''}"><div><button class="resource-title-button" data-preview-resource="${escapeHtml(resource.id)}" aria-pressed="${resource.id === selectedResourceId}" type="button"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><span><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.fileName)} · ${escapeHtml(resource.department)}</small></span></button></div><button class="row-action" data-delete-resource="${escapeHtml(resource.id)}" type="button">Delete</button></article>`).join('')}</div>` : `<div class="empty-state">No ${escapeHtml(activeResourceCategory.toLowerCase())} match this department. Add one to begin.</div>`;
 }
 function renderAssignmentOptions() {
   const employeeOptions = employees().map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)} · ${escapeHtml(employee.department)}</option>`).join('');
