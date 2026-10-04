@@ -6,7 +6,7 @@
   <title>QBEL | Development Centre</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <style>
     .tracker-controls{display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(2,minmax(150px,1fr));gap:12px;margin:0 0 16px}
@@ -26,6 +26,7 @@
     @media(max-width:980px){.dashboard-kpis{grid-template-columns:repeat(3,1fr)}.impact-levels{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:760px){.tracker-summary{grid-template-columns:repeat(2,1fr)}.tracker-controls{grid-template-columns:1fr}.recommended-list,.dashboard-split,.recommendation-list{grid-template-columns:1fr}.dashboard-kpis,.dashboard-grid,.employee-learning-grid,.learning-kpis{grid-template-columns:1fr}.dashboard-wide,.learning-wide{grid-column:auto}.impact-levels{grid-template-columns:repeat(2,1fr)}.quarter-toolbar{align-items:stretch;flex-direction:column}.quarter-toolbar span{padding:0}.learning-hero{align-items:stretch;flex-direction:column}.learning-hero select{width:100%}.learning-progress-banner{grid-template-columns:1fr}.quick-actions{display:grid;grid-template-columns:1fr 1fr}}
   </style>
+  <link rel="stylesheet" href="../workspace.css" />
 </head>
 <body>
   <main class="development-app">
@@ -38,7 +39,7 @@
     </header>
     <nav class="section-tabs" aria-label="Development Centre sections">
       <button class="section-tab active" data-view="dashboard">Dashboard</button>
-      <button class="section-tab" data-view="learning">Employee portal</button>
+      <button class="section-tab" data-view="learning">Employee learning</button>
       <button class="section-tab" data-view="library">Resource library</button>
       <button class="section-tab" data-view="tracker">Training tracker</button>
       <button class="section-tab" data-view="modules">Development records</button>
@@ -58,7 +59,7 @@
     </section>
 
     <section class="view" id="learningView">
-      <header class="learning-hero"><div><span class="eyebrow">Employee learning portal</span><h2 id="learningWelcome">Welcome</h2><p id="learningRole">Choose an employee to view their development journey.</p></div><label>Employee<select id="learningEmployeeSelect"></select></label></header>
+      <header class="learning-hero"><div><span class="eyebrow">Employee learning</span><h2 id="learningWelcome">Welcome</h2><p id="learningRole">Choose an employee to view their development journey.</p></div><label>Employee<select id="learningEmployeeSelect"></select></label></header>
       <section class="next-session-banner" aria-live="polite">
         <div class="next-session-empty" id="nextCourseEmpty"><span class="eyebrow">Next course</span><strong>No upcoming course is assigned.</strong></div>
         <div class="next-session-details" id="nextCourseDetails" hidden><div class="next-session-title"><span class="eyebrow">Next course</span><h2 id="nextCourseTitle"></h2><p id="nextCourseSkills"></p></div><div class="next-session-times"><div><span id="nextCourseDateLabel">Session date</span><time id="nextCourseDate"></time></div><div><span id="nextCourseTimeLabel">Start time</span><time id="nextCourseTime"></time></div></div></div>

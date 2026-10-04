@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="workspace.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
@@ -42,19 +43,19 @@
       <h1>Choose a module</h1>
       <p class="module-home-intro">Select a workspace to continue.</p>
       <div class="module-grid">
-        <button class="module-card module-card-primary" type="button" data-module="evaluations">
+        <button class="module-card module-card-primary" type="button" data-module="employees">
           <span class="module-card-number">01</span>
+          <span class="module-card-content"><strong>Employees</strong><small>Manage the employee directory and records</small></span>
+          <span class="module-card-arrow" aria-hidden="true">&#8594;</span>
+        </button>
+        <button class="module-card" type="button" data-module="evaluations">
+          <span class="module-card-number">02</span>
           <span class="module-card-content"><strong>Evaluations</strong><small>Employee performance, reviews and scoring</small></span>
           <span class="module-card-arrow" aria-hidden="true">&#8594;</span>
         </button>
         <button class="module-card" type="button" data-module="development">
-          <span class="module-card-number">02</span>
-          <span class="module-card-content"><strong>Development Centre</strong><small>Training resources, policies and employee learning</small></span>
-          <span class="module-card-arrow" aria-hidden="true">&#8594;</span>
-        </button>
-        <button class="module-card" type="button" data-module="employees">
           <span class="module-card-number">03</span>
-          <span class="module-card-content"><strong>Employees</strong><small>Manage the employee directory and records</small></span>
+          <span class="module-card-content"><strong>Learning Center</strong><small>Training resources, policies and employee learning</small></span>
           <span class="module-card-arrow" aria-hidden="true">&#8594;</span>
         </button>
         <button class="module-card" type="button" data-module="reports">
@@ -69,15 +70,15 @@
   <div class="app-shell module-hidden" id="developmentShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
-      <button class="module-switch-button" type="button" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted">&#8592;</span>All modules</button>
       <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#home" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted nav-home-icon" aria-hidden="true">&#8962;</span>Home</a>
         <a class="nav-item qbel-nav-link" href="#employees" data-module="employees"><span class="nav-icon-badge coral">&#9678;</span>Employees</a>
         <span class="nav-group-title">Evaluations</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
         <span class="nav-group-title">Learning Center</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
-        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee learning</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
@@ -97,15 +98,15 @@
   <div class="app-shell module-hidden" id="employeesShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
-      <button class="module-switch-button" type="button" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted">&#8592;</span>All modules</button>
       <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#home" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted nav-home-icon" aria-hidden="true">&#8962;</span>Home</a>
         <a class="nav-item qbel-nav-link active" href="#employees" data-module="employees"><span class="nav-icon-badge coral">&#9678;</span>Employees</a>
         <span class="nav-group-title">Evaluations</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
         <span class="nav-group-title">Learning Center</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
-        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee learning</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
@@ -122,7 +123,7 @@
         <div><p class="eyebrow" id="employeesTodayDate"></p></div>
       </header>
       <section class="employee-hero-banner">
-        <div><span class="section-kicker">People directory</span><h2>Your people,<br /><em>at a glance.</em></h2><p>Keep the employee directory current so learning, development and evaluations always line up.</p></div>
+        <div><span class="section-kicker">People directory</span><h2>Employees</h2><p>Keep the employee directory current so learning, development and evaluations always line up.</p></div>
         <div class="employee-hero-badge"><span>Directory</span><strong id="employeeHeroCount">0</strong><small>active people</small></div>
       </section>
       <section class="workforce-pulse">
@@ -155,15 +156,15 @@
   <div class="app-shell" id="evaluationsShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
-      <button class="module-switch-button" type="button" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted">&#8592;</span>All modules</button>
       <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#home" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted nav-home-icon" aria-hidden="true">&#8962;</span>Home</a>
         <a class="nav-item qbel-nav-link" href="#employees" data-module="employees"><span class="nav-icon-badge coral">&#9678;</span>Employees</a>
         <span class="nav-group-title">Evaluations</span>
         <a class="nav-item nav-subitem qbel-nav-link active" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
         <span class="nav-group-title">Learning Center</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
-        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee learning</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>
@@ -185,7 +186,7 @@
       <div class="tab-panel active" id="dashboard" data-tab-panel="dashboard">
       <section class="hero-grid">
         <div class="hero-panel">
-          <div class="hero-copy"><span class="section-kicker">Evaluation cycle - Q3 2026</span><h2>Make every review<br /><em>count.</em></h2><p>Track progress, capture meaningful feedback, and help every person move forward.</p><button class="dark-button" id="heroStartButton">Start an evaluation <span>↗</span></button></div>
+          <div class="hero-copy"><span class="section-kicker">Evaluation cycle - Q3 2026</span><h2>Evaluation dashboard</h2><p>Track progress, capture meaningful feedback, and help every person move forward.</p><button class="dark-button" id="heroStartButton">Start an evaluation <span>↗</span></button></div>
           <div class="hero-orbit"><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><div class="orbit-core">Q3<br /><small>cycle</small></div><span class="orbit-star star-one">*</span><span class="orbit-star star-two">*</span><span class="orbit-star star-three">*</span></div>
         </div>
         <div class="cycle-panel"><div class="panel-heading"><div><span class="section-kicker">Cycle progress</span><h3>Q3 evaluations</h3></div><span class="status-pill" id="cycleStatus">In progress</span></div><div class="cycle-number"><strong id="completedCount">0</strong><span>of <span id="cycleTotal">0</span><br />completed</span></div><div class="progress-track large"><span id="cycleProgressBar"></span></div><div class="cycle-footer"><span><i class="dot green"></i>Completed <b id="cycleCompletedFooter">0</b></span><span><i class="dot orange"></i>Remaining <b id="cycleRemainingFooter">0</b></span></div></div>
@@ -228,15 +229,15 @@
   <div class="app-shell module-hidden" id="reportsShell" aria-hidden="true">
     <aside class="sidebar">
       <div class="brand"><img class="brand-logo sidebar-logo" src="logo.png" alt="QBEL FM &amp; Technical Services" /></div>
-      <button class="module-switch-button" type="button" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted">&#8592;</span>All modules</button>
       <nav class="primary-nav qbel-nav" aria-label="Primary navigation">
+        <a class="nav-item qbel-nav-link" href="#home" data-module="home"><span class="nav-icon-badge nav-icon-badge-muted nav-home-icon" aria-hidden="true">&#8962;</span>Home</a>
         <a class="nav-item qbel-nav-link" href="#employees" data-module="employees"><span class="nav-icon-badge coral">&#9678;</span>Employees</a>
         <span class="nav-group-title">Evaluations</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#dashboard" data-module="evaluations" data-tab="dashboard"><span class="nav-icon-badge pastel-blue">&#9727;</span>Evaluation dashboard</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#evaluations" data-module="evaluations" data-tab="evaluations"><span class="nav-icon-badge pastel-purple">&#9998;</span>Evaluation &amp; scoring</a>
         <span class="nav-group-title">Learning Center</span>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="dashboard"><span class="nav-icon-badge pastel-mint">&#9638;</span>Dashboard</a>
-        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee portal</a>
+        <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="learning"><span class="nav-icon-badge pastel-yellow">&#9670;</span>Employee learning</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="library"><span class="nav-icon-badge pastel-blue">&#9637;</span>Resource library</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="tracker"><span class="nav-icon-badge pastel-coral">&#8635;</span>Training tracker</a>
         <a class="nav-item nav-subitem qbel-nav-link" href="#" data-development-view="modules"><span class="nav-icon-badge pastel-mint">&#10003;</span>Development records</a>

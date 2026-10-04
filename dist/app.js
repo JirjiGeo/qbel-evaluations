@@ -304,9 +304,17 @@ function showModule(moduleName) {
 }
 
 function syncSidebarNav(moduleName, tabName) {
-  document.querySelectorAll('.qbel-nav-link[data-module="employees"]').forEach((link) => link.classList.toggle('active', moduleName === 'employees'));
-  document.querySelectorAll('.qbel-nav-link[data-module="evaluations"][data-tab]').forEach((link) => link.classList.toggle('active', moduleName === 'evaluations' && link.dataset.tab === tabName));
-  document.querySelectorAll('.qbel-nav-link[data-module="reports"]').forEach((link) => link.classList.toggle('active', moduleName === 'reports'));
+  const developmentView = moduleName === 'development'
+    ? tabName || document.querySelector('#developmentFrame')?.contentDocument?.querySelector('.section-tab.active')?.dataset.view || 'dashboard'
+    : null;
+  document.querySelectorAll('.qbel-nav-link').forEach((link) => {
+    const selected = link.dataset.developmentView
+      ? moduleName === 'development' && link.dataset.developmentView === developmentView
+      : link.dataset.module === moduleName && (!link.dataset.tab || link.dataset.tab === tabName);
+    link.classList.toggle('active', selected);
+    if (selected) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
 }
 
 function withDevelopmentFrame(callback, attempt = 0) {
