@@ -235,6 +235,24 @@ body .development-app .resource-card:hover { transform: none; box-shadow: none; 
 body .main-content .employee-grid { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
 body .development-app :is(.dashboard-grid, .employee-portal-layout, .library-layout, .portal-detail-grid) { gap: 24px; }
 body .development-app .module-panel .view-heading { margin-bottom: 20px; }
+body .development-app .module-record-actions { flex-wrap: wrap; justify-content: flex-end; }
+
+body .development-app .document-title-button {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+body .development-app .document-title-button:hover { text-decoration: underline; }
+body .development-app .next-session-title .document-title-button strong { font: inherit; }
 
 body .development-app #libraryView .resource-list { display: block; }
 body .development-app #libraryView .resource-button-list {

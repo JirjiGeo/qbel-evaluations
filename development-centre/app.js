@@ -112,7 +112,7 @@ function renderEmployeeLearning() {
     const resource = resourceMap.get(assignment.resourceId);
     const state = assignment.status === 'Completed' ? 'complete' : assignment.resultStatus === 'Failed' ? 'attention' : index === 0 ? 'current' : 'next';
     const certificate = window.hasEmployeeCertificate?.(employee.id, assignment.id) ? '<span class="roadmap-certificate">Certificate earned</span>' : '';
-    return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : state === 'attention' ? '!' : '&#8594;'}</span><div class="roadmap-step-content"><div class="roadmap-step-heading"><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong></div>${certificate}</div></div>`;
+    return `<div class="roadmap-step ${state}"><span class="roadmap-marker">${state === 'complete' ? '&#10003;' : state === 'attention' ? '!' : '&#8594;'}</span><div class="roadmap-step-content"><div class="roadmap-step-heading">${learningResourceTitle(resource)}</div>${certificate}</div></div>`;
   }).join('') : '<div class="dashboard-empty"><strong>Your learning journey starts here.</strong><span>No assignments have been made for this employee yet.</span></div>';
   const upcomingCourses = courseAssignments.filter((assignment) => assignment.status !== 'Completed').sort((first, second) => `${first.scheduledDate || first.dueDate || '9999-12-31'}T${first.scheduledTime || '23:59'}`.localeCompare(`${second.scheduledDate || second.dueDate || '9999-12-31'}T${second.scheduledTime || '23:59'}`));
   const nextCourse = upcomingCourses[0];
@@ -120,7 +120,7 @@ function renderEmployeeLearning() {
   $('#nextCourseDetails').hidden = !nextCourse;
   if (nextCourse) {
     const resource = resourceMap.get(nextCourse.resourceId);
-    $('#nextCourseTitle').textContent = resource?.title || 'Deleted resource';
+    $('#nextCourseTitle').innerHTML = learningResourceTitle(resource);
     const courseDate = nextCourse.scheduledDate || nextCourse.dueDate;
     $('#nextCourseDateLabel').textContent = nextCourse.scheduledDate ? 'Session date' : 'Due date';
     $('#nextCourseDate').textContent = courseDate ? new Date(`${courseDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Not scheduled';
@@ -141,7 +141,7 @@ function renderEmployeeLearning() {
     const sessionTime = assignment.scheduledTime ? new Date(`1970-01-01T${assignment.scheduledTime}`).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : null;
     const session = sessionDate ? `Scheduled ${sessionDate}${sessionTime ? ` · ${sessionTime}` : ' · Time to be confirmed'}` : 'Session to be scheduled';
     const dueDate = assignment.dueDate ? `<small>Due ${escapeHtml(assignment.dueDate)}</small>` : '';
-    return `<article class="course-row"><div class="course-row-heading"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small class="course-session">${session}</small>${dueDate}</div><span class="course-status course-status-${assignment.status.toLowerCase().replace(/\s+/g, '-')}" >${escapeHtml(assignment.status)}</span></div><div class="course-row-details"><span>Result: ${escapeHtml(result)}</span>${validity}</div>${skillLine}</article>`;
+    return `<article class="course-row"><div class="course-row-heading"><div>${learningResourceTitle(resource)}<small class="course-session">${session}</small>${dueDate}</div><span class="course-status course-status-${assignment.status.toLowerCase().replace(/\s+/g, '-')}" >${escapeHtml(assignment.status)}</span></div><div class="course-row-details"><span>Result: ${escapeHtml(result)}</span>${validity}</div>${skillLine}</article>`;
   }).join('') : '<div class="course-empty">No completed courses yet.</div>';
 }
 function renderDashboard() {
@@ -322,7 +322,23 @@ function renderTracker() {
   }).join('') : '<tr><td colspan="9" class="empty-state">No matching assignments for this quarter.</td></tr>';
   renderLearningProfile();
 }
-function learningItem(assignment, resourceMap) { const resource = resourceMap.get(assignment.resourceId); return `<article class="learning-item"><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(assignment.dueDate || assignment.assignedDate)}${assignment.status === 'Completed' ? ' · Completed' : ''}</small></article>`; }
+function learningResourceTitle(resource) {
+  return resource
+    ? `<button class="document-title-button" type="button" data-open-learning-resource="${escapeHtml(resource.id)}" aria-label="Open ${escapeHtml(resource.title)}"><strong>${escapeHtml(resource.title)}</strong></button>`
+    : '<strong>Deleted resource</strong>';
+}
+async function openLearningResource(resourceId) {
+  const resource = resources.find((item) => item.id === resourceId);
+  if (!resource) return notify('This learning resource is no longer available.');
+  activeResourceCategory = resource.category;
+  $('#libraryDepartment').value = 'all';
+  document.querySelectorAll('.resource-tab[data-resource-category]').forEach((tab) => tab.classList.toggle('active', tab.dataset.resourceCategory === resource.category));
+  closeResourcePreview();
+  renderResources();
+  switchView('library');
+  await previewResource(resource);
+}
+function learningItem(assignment, resourceMap) { const resource = resourceMap.get(assignment.resourceId); return `<article class="learning-item">${learningResourceTitle(resource)}<small>${escapeHtml(assignment.dueDate || assignment.assignedDate)}${assignment.status === 'Completed' ? ' · Completed' : ''}</small></article>`; }
 function renderLearningProfile() {
   const employeeId = $('#profileEmployeeSelect')?.value;
   const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
@@ -387,6 +403,10 @@ $('#assignmentForm').addEventListener('submit', async (event) => {
   }
 });
 document.addEventListener('click', async (event) => { const previewButton = event.target.closest('[data-preview-resource]'); if (previewButton) { const resource = resources.find((item) => item.id === previewButton.dataset.previewResource); if (resource) previewResource(resource); } const closePreviewButton = event.target.closest('[data-close-preview]'); if (closePreviewButton) closeResourcePreview(); const resourceButton = event.target.closest('[data-delete-resource]'); if (resourceButton) { const client = cloudClient(); const resourceId = resourceButton.dataset.deleteResource; const resource = resources.find((item) => item.id === resourceId); if (client && !resourceId.startsWith('resource-')) { if (resource?.filePath) { const { error } = await client.storage.from(resourceBucket).remove([resource.filePath]); if (error) { console.error('Resource file deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } const { error } = await client.from('development_resources').delete().eq('id', resourceId); if (error) { console.error('Resource deletion failed:', error); notify(`Delete failed: ${error.message}`); return; } } resources = resources.filter((item) => item.id !== resourceId); save(); renderResources(); renderAssignmentOptions(); closeResourcePreview(); notify('Resource deleted.'); } const assignmentButton = event.target.closest('[data-delete-assignment]'); if (assignmentButton) { const client = cloudClient(); if (client && !assignmentButton.dataset.deleteAssignment.startsWith('training-')) await client.from('training_assignments').delete().eq('id', assignmentButton.dataset.deleteAssignment); assignments = assignments.filter((assignment) => assignment.id !== assignmentButton.dataset.deleteAssignment); save(); renderTracker(); notify('Assignment deleted.'); } });
+document.addEventListener('click', (event) => {
+  const resourceButton = event.target.closest('[data-open-learning-resource]');
+  if (resourceButton) void openLearningResource(resourceButton.dataset.openLearningResource);
+});
 document.addEventListener('change', async (event) => {
   const status = event.target.closest('[data-status-assignment]');
   if (!status) return;

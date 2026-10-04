@@ -172,7 +172,7 @@ function moduleRecordMarkup(kind, record) {
     : kind === 'certificates' && record.file_path
       ? `<button class="row-action" type="button" data-download-certificate="${moduleEscape(record.id)}">Download</button>`
       : '';
-  return `<article class="module-record"><div class="module-record-content"><strong>${moduleEscape(title)}</strong><small>${moduleEscape(employee)}</small><div class="module-record-meta">${details}</div></div><div class="module-record-actions">${certificateAction}<button class="row-action" type="button" data-delete-module="${kind}" data-record-id="${moduleEscape(record.id)}" aria-label="Delete ${moduleEscape(title)}">Delete</button></div></article>`;
+  return `<article class="module-record"><div class="module-record-content">${kind === 'certificates' ? certificateTitleMarkup(record) : `<strong>${moduleEscape(title)}</strong>`}<small>${moduleEscape(employee)}</small><div class="module-record-meta">${details}</div></div><div class="module-record-actions">${certificateAction}<button class="row-action" type="button" data-edit-module="${kind}" data-record-id="${moduleEscape(record.id)}" aria-label="Edit ${moduleEscape(title)}">Edit</button><button class="row-action" type="button" data-delete-module="${kind}" data-record-id="${moduleEscape(record.id)}" aria-label="Delete ${moduleEscape(title)}">Delete</button></div></article>`;
 }
 
 function moduleRenderList(kind) {
@@ -202,7 +202,7 @@ function renderEmployeeModuleWidgets() {
     return `<article class="learning-item skill-item"><div><strong>${moduleEscape(skill.name)}</strong><small>${levels}${courses ? ` · ${moduleEscape(courses)}` : ''}</small></div>${skill.rating ? `<span class="skill-meter" style="--skill-level:${skill.rating.current_level * 20}%;--skill-target:${skill.rating.target_level * 20}%"><i></i></span>` : ''}</article>`;
   }).join('') : '<p class="learning-empty">No skills selected yet. Skills appear here when a course is assigned to build them.</p>';
   const certificates = moduleRows.certificates.filter((row) => row.employee_id === employeeId);
-  module$('#learningCertificates').innerHTML = certificates.length ? certificates.map((row) => `<article class="learning-item certificate-item"><strong>${moduleEscape(row.certificate_name)}</strong><small>${moduleEscape(row.issuer || 'Issuer not recorded')} · Valid through ${moduleDate(row.expires_on)}</small>${row.training_assignment_id ? `<button class="row-action" type="button" data-print-certificate="${moduleEscape(row.id)}">Print / Save PDF</button>` : ''}</article>`).join('') : '<p class="learning-empty">Pass a completed course to unlock its one-year certificate here.</p>';
+  module$('#learningCertificates').innerHTML = certificates.length ? certificates.map((row) => `<article class="learning-item certificate-item">${certificateTitleMarkup(row)}<small>${moduleEscape(row.issuer || 'Issuer not recorded')} · Valid through ${moduleDate(row.expires_on)}</small>${row.training_assignment_id ? `<button class="row-action" type="button" data-print-certificate="${moduleEscape(row.id)}">Print / Save PDF</button>` : row.file_path ? `<button class="row-action" type="button" data-download-certificate="${moduleEscape(row.id)}">Download</button>` : ''}</article>`).join('') : '<p class="learning-empty">Pass a completed course to unlock its one-year certificate here.</p>';
 }
 
 function renderModuleDashboard() {
@@ -230,7 +230,9 @@ function moduleField(label, name, control, full = false) {
   return `<label${full ? ' class="full-width"' : ''}>${label}${control}</label>`;
 }
 
-function openDevelopmentRecordForm(kind) {
+function openDevelopmentRecordForm(kind, recordId = null) {
+  const record = recordId ? moduleRows[kind]?.find((row) => row.id === recordId) : null;
+  if (recordId && !record) return moduleNotify('This development record is no longer available.');
   const employee = `<select name="employee_id" required>${moduleEmployeeOptions()}</select>`;
   const assignment = (category) => {
     const options = moduleAssignmentOptions(category);
@@ -284,8 +286,27 @@ function openDevelopmentRecordForm(kind) {
   fields = forms[kind]?.join('') || '';
   if (!fields) return;
   module$('#developmentRecordForm').dataset.module = kind;
-  module$('#moduleFormTitle').textContent = ({ plans: 'Add development goal', skills: 'Assess employee skill', certificates: 'Add certificate', assessments: 'Record training result', impact: 'Record training impact' })[kind];
+  if (record) module$('#developmentRecordForm').dataset.recordId = record.id;
+  else delete module$('#developmentRecordForm').dataset.recordId;
+  module$('#moduleFormTitle').textContent = record
+    ? ({ plans: 'Edit development goal', skills: 'Edit skill assessment', certificates: 'Edit certificate', assessments: 'Edit training result', impact: 'Edit training impact' })[kind]
+    : ({ plans: 'Add development goal', skills: 'Assess employee skill', certificates: 'Add certificate', assessments: 'Record training result', impact: 'Record training impact' })[kind];
   module$('#moduleFormFields').innerHTML = `<div class="module-form-grid">${fields}</div>`;
+  module$('#developmentRecordForm button[type="submit"]').textContent = record ? 'Save changes' : 'Save record';
+  if (record) {
+    module$('#moduleFormFields').querySelectorAll('[name]').forEach((field) => {
+      if (field.type === 'file' || !(field.name in record)) return;
+      const value = String(record[field.name] ?? '');
+      if (field.tagName === 'SELECT' && value && ![...field.options].some((option) => option.value === value)) {
+        const label = field.name === 'employee_id' ? moduleEmployeeName(value) : field.name === 'assignment_id' ? moduleAssignmentLabel(value) : value;
+        field.add(new Option(label, value));
+      }
+      field.value = value;
+    });
+    if (kind === 'certificates' && record.file_path) {
+      module$('#moduleFormFields input[name="certificate_file"]').insertAdjacentHTML('afterend', `<small class="module-field-hint">Current file: ${moduleEscape(record.file_name || 'certificate.pdf')}. Leave empty to keep it.</small>`);
+    }
+  }
   moduleReturnFocus = document.activeElement;
   module$('#moduleModal').classList.add('open');
   module$('#moduleModal').setAttribute('aria-hidden', 'false');
@@ -296,6 +317,7 @@ function closeDevelopmentRecordForm() {
   moduleReturnFocus?.focus();
   module$('#moduleModal').classList.remove('open');
   module$('#moduleModal').setAttribute('aria-hidden', 'true');
+  delete module$('#developmentRecordForm').dataset.recordId;
 }
 
 function developmentPayload(kind, values) {
@@ -314,6 +336,9 @@ async function saveDevelopmentRecord(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const kind = form.dataset.module;
+  const recordId = form.dataset.recordId;
+  const existingRecord = recordId ? moduleRows[kind]?.find((row) => row.id === recordId) : null;
+  if (recordId && !existingRecord) return moduleNotify('This development record is no longer available.');
   const client = moduleClient();
   if (!client || !moduleSessionUserId || !moduleTables[kind]) return moduleNotify('Sign in to Supabase before saving development records.');
   const values = new FormData(form);
@@ -333,16 +358,21 @@ async function saveDevelopmentRecord(event) {
       payload.file_name = fileName;
     }
   }
-  const query = kind === 'skills'
-    ? client.from(moduleTables[kind]).upsert(payload, { onConflict: 'employee_id,competency' }).select().single()
-    : client.from(moduleTables[kind]).insert(payload).select().single();
+  const query = recordId
+    ? client.from(moduleTables[kind]).update(payload).eq('id', recordId).select().single()
+    : kind === 'skills'
+      ? client.from(moduleTables[kind]).upsert(payload, { onConflict: 'employee_id,competency' }).select().single()
+      : client.from(moduleTables[kind]).insert(payload).select().single();
   const { data, error } = await query;
   if (error) {
     if (filePath) await client.storage.from(moduleBucket).remove([filePath]);
     console.error('Development record save failed:', error);
     return moduleNotify(`Could not save record: ${error.message}`);
   }
-  if (kind === 'skills') {
+  if (recordId) {
+    const index = moduleRows[kind].findIndex((row) => row.id === recordId);
+    moduleRows[kind][index] = data;
+  } else if (kind === 'skills') {
     const index = moduleRows.skills.findIndex((row) => row.employee_id === data.employee_id && row.competency.toLowerCase() === data.competency.toLowerCase());
     if (index >= 0) moduleRows.skills[index] = data;
     else moduleRows.skills.unshift(data);
@@ -353,7 +383,11 @@ async function saveDevelopmentRecord(event) {
   closeDevelopmentRecordForm();
   renderDevelopmentModules();
   if (kind === 'assessments') window.dispatchEvent(new Event('development-modules-refresh'));
-  moduleNotify(kind === 'skills' ? 'Skill assessment saved.' : 'Development record saved.');
+  moduleNotify(recordId ? 'Development record updated.' : kind === 'skills' ? 'Skill assessment saved.' : 'Development record saved.');
+  if (filePath && existingRecord?.file_path && existingRecord.file_path !== filePath) {
+    const { error: removalError } = await client.storage.from(moduleBucket).remove([existingRecord.file_path]);
+    if (removalError) moduleNotify('Record updated, but the previous certificate file could not be removed.');
+  }
 }
 
 async function deleteDevelopmentRecord(kind, id) {
@@ -369,6 +403,38 @@ async function deleteDevelopmentRecord(kind, id) {
   moduleRows[kind] = moduleRows[kind].filter((row) => row.id !== id);
   renderDevelopmentModules();
   moduleNotify('Development record deleted.');
+}
+
+function certificateTitleMarkup(record) {
+  return `<button class="document-title-button" type="button" data-open-certificate="${moduleEscape(record.id)}" aria-label="Open ${moduleEscape(record.certificate_name)}"><strong>${moduleEscape(record.certificate_name)}</strong></button>`;
+}
+
+async function openDevelopmentCertificate(id) {
+  const record = moduleRows.certificates.find((item) => item.id === id);
+  if (!record) return moduleNotify('This certificate is no longer available.');
+  if (!record.file_path) {
+    if (record.training_assignment_id) return printTrainingCertificate(id);
+    return moduleNotify('No certificate document is attached to this record.');
+  }
+  const client = moduleClient();
+  if (!client) return moduleNotify('Sign in to open this certificate document.');
+  const certificateWindow = window.open('', '_blank');
+  if (!certificateWindow) return moduleNotify('Allow pop-ups to open the certificate.');
+  certificateWindow.opener = null;
+  certificateWindow.document.title = record.certificate_name;
+  certificateWindow.document.body.textContent = 'Loading certificate...';
+  try {
+    const { data, error } = await client.storage.from(moduleBucket).download(record.file_path);
+    if (error) throw error;
+    if (certificateWindow.closed) return;
+    const pdf = data.type === 'application/pdf' ? data : new Blob([data], { type: 'application/pdf' });
+    const url = URL.createObjectURL(pdf);
+    certificateWindow.location.replace(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    certificateWindow.close();
+    moduleNotify(`Certificate could not be opened: ${error.message || 'Document unavailable.'}`);
+  }
 }
 
 async function downloadDevelopmentCertificate(id) {
@@ -406,6 +472,10 @@ document.querySelectorAll('[data-add-module]').forEach((button) => button.addEve
 document.querySelectorAll('[data-close-module-modal]').forEach((button) => button.addEventListener('click', closeDevelopmentRecordForm));
 module$('#developmentRecordForm').addEventListener('submit', saveDevelopmentRecord);
 document.addEventListener('click', (event) => {
+  const openButton = event.target.closest('[data-open-certificate]');
+  if (openButton) void openDevelopmentCertificate(openButton.dataset.openCertificate);
+  const editButton = event.target.closest('[data-edit-module]');
+  if (editButton) openDevelopmentRecordForm(editButton.dataset.editModule, editButton.dataset.recordId);
   const deleteButton = event.target.closest('[data-delete-module]');
   if (deleteButton) void deleteDevelopmentRecord(deleteButton.dataset.deleteModule, deleteButton.dataset.recordId);
   const downloadButton = event.target.closest('[data-download-certificate]');
