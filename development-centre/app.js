@@ -85,7 +85,6 @@ function renderEmployeeLearning() {
   const employee = activeEmployees.find((item) => item.id === employeeSelect.value) || activeEmployees[0];
   const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
   const employeeAssignments = assignments.filter((assignment) => assignment.employeeId === employee.id);
-  const tests = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category === 'Tests');
   const courseAssignments = employeeAssignments.filter((assignment) => resourceMap.get(assignment.resourceId)?.category !== 'Tests');
   const completedCourses = courseAssignments.filter((assignment) => assignment.status === 'Completed').length;
   const today = new Date().toISOString().slice(0, 10);
@@ -159,7 +158,6 @@ function renderDashboard() {
     ['Active learners', activeLearners.size, 'With open development activity'],
     ['Courses completed', completedCourses, 'Completed course assignments'],
     ['Training completion', `${completionRate}%`, 'Across tracked assignments'],
-    ['Exam pass rate', 'Set up', 'Assessment results required'],
     ['Active IDPs', 'Set up', 'Development plans required']
   ].map(([label, value, note]) => `<article class="dashboard-kpi"><span>${label}</span><strong>${value}</strong><small>${note}</small></article>`).join('');
   $('#atlasActiveLearners').textContent = activeLearners.size;
@@ -279,7 +277,7 @@ function renderResources() {
       if (assignment.resultStatus === 'Failed') counts.failed += 1;
       return counts;
     }, { passed: 0, failed: 0 });
-    const resultSummary = ['Courses', 'Trainings', 'Tests'].includes(resource.category)
+    const resultSummary = ['Courses', 'Trainings'].includes(resource.category)
       ? `<small class="resource-result-counts">Results · Passed: ${outcomes.passed} · Failed: ${outcomes.failed}</small>`
       : '';
     return `<article class="resource-card${resource.id === selectedResourceId ? ' selected' : ''}"><div><button class="resource-title-button" data-preview-resource="${escapeHtml(resource.id)}" aria-pressed="${resource.id === selectedResourceId}" type="button"><span class="resource-icon">${escapeHtml(resource.fileType)}</span><span><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.fileName)} · ${escapeHtml(resource.department)}</small>${resultSummary}</span></button></div><button class="row-action" data-delete-resource="${escapeHtml(resource.id)}" type="button">Delete</button></article>`;
@@ -291,8 +289,8 @@ function renderAssignmentOptions() {
   const currentProfileEmployee = $('#profileEmployeeSelect')?.value;
   $('#profileEmployeeSelect').innerHTML = employeeOptions || '<option value="">No employees found</option>';
   if (currentProfileEmployee && employees().some((employee) => employee.id === currentProfileEmployee)) $('#profileEmployeeSelect').value = currentProfileEmployee;
-  const resourceOptions = resources.filter((resource) => ['Courses', 'Trainings', 'Tests'].includes(resource.category)).map((resource) => `<option value="${escapeHtml(resource.id)}">${escapeHtml(resource.title)} · ${escapeHtml(resource.category)}</option>`).join('');
-  $('#assignmentResource').innerHTML = resourceOptions || '<option value="">Add a course, training or test first</option>';
+  const resourceOptions = resources.filter((resource) => ['Courses', 'Trainings'].includes(resource.category)).map((resource) => `<option value="${escapeHtml(resource.id)}">${escapeHtml(resource.title)} · ${escapeHtml(resource.category)}</option>`).join('');
+  $('#assignmentResource').innerHTML = resourceOptions || '<option value="">Add a course or training first</option>';
   $('#trackerQuarter').innerHTML = quarterOptions().map((quarter) => `<option value="${quarter}" ${quarter === selectedQuarter ? 'selected' : ''}>${quarterLabel(quarter)}</option>`).join('');
   $('#assignmentQuarter').innerHTML = quarterOptions().map((quarter) => `<option value="${quarter}" ${quarter === selectedQuarter ? 'selected' : ''}>${quarterLabel(quarter)}</option>`).join('');
   const departments = [...new Set(employees().map((employee) => employee.department))].sort();
@@ -308,8 +306,8 @@ function renderTracker() {
   const completionRate = quarterAssignments.length ? Math.round((completed / quarterAssignments.length) * 100) : 0;
   $('#trackerQuarterLabel').textContent = quarterLabel(selectedQuarter);
   $('#trackerSummary').innerHTML = `<div class="summary-card"><span>Quarter assignments</span><strong>${quarterAssignments.length}</strong></div><div class="summary-card"><span>In progress</span><strong>${quarterAssignments.filter((assignment) => assignment.status === 'In progress').length}</strong></div><div class="summary-card"><span>Completed</span><strong>${completed}<small>/${quarterAssignments.length}</small></strong></div><div class="summary-card summary-alert"><span>Overdue</span><strong>${overdue}<small>${completionRate}% complete</small></strong></div>`;
-  const recommended = resources.filter((resource) => resource.recommended && ['Courses', 'Trainings', 'Tests'].includes(resource.category));
-  $('#recommendedList').innerHTML = recommended.length ? recommended.map((resource) => `<button class="recommended-card" type="button" data-recommended-resource="${escapeHtml(resource.id)}"><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.category)} · ${escapeHtml(resource.department)}</small></button>`).join('') : '<p class="learning-empty">Mark courses or tests as recommended in the resource library.</p>';
+  const recommended = resources.filter((resource) => resource.recommended && ['Courses', 'Trainings'].includes(resource.category));
+  $('#recommendedList').innerHTML = recommended.length ? recommended.map((resource) => `<button class="recommended-card" type="button" data-recommended-resource="${escapeHtml(resource.id)}"><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.category)} · ${escapeHtml(resource.department)}</small></button>`).join('') : '<p class="learning-empty">Mark courses or trainings as recommended in the resource library.</p>';
   const query = $('#trainingSearch').value.toLowerCase().trim();
   const statusFilter = $('#trainingStatusFilter').value;
   const departmentFilter = $('#trainingDepartmentFilter').value;
@@ -392,7 +390,7 @@ $('#assignmentForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const selectedEmployees = Array.from($('#assignmentEmployee').selectedOptions).map((option) => option.value).filter(Boolean);
   const resourceId = $('#assignmentResource').value;
-  if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course or test.'); return; }
+  if (!selectedEmployees.length || !resourceId) { notify('Please select at least one employee and a course or training.'); return; }
   const skillsToDevelop = [...new Set($('#assignmentSkills').value.split(/[\n,]/).map((skill) => skill.trim()).filter(Boolean))];
   const scheduledDate = $('#assignmentScheduledDate').value;
   const scheduledTime = $('#assignmentScheduledTime').value;

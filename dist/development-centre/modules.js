@@ -4,7 +4,6 @@ const moduleTables = {
   plans: 'development_plans',
   skills: 'development_skills',
   certificates: 'employee_certifications',
-  assessments: 'training_assessment_results',
   impact: 'training_impact_records'
 };
 const moduleRows = { plans: [], skills: [], certificates: [], assessments: [], impact: [] };
@@ -212,9 +211,6 @@ function renderModuleDashboard() {
   const gaps = moduleRows.skills.map((row) => ({ ...row, gap: Math.max(0, row.target_level - row.current_level) })).filter((row) => row.gap > 0).sort((a, b) => b.gap - a.gap).slice(0, 5);
   module$('#skillGapSummary').innerHTML = gaps.length ? gaps.map((row) => `<article class="learning-item"><strong>${moduleEscape(row.competency)}</strong><small>${moduleEscape(moduleEmployeeName(row.employee_id))} · ${row.current_level}/5 current, ${row.target_level}/5 target</small></article>`).join('') : '<p class="learning-empty">No recorded skill gaps.</p>';
   const kpis = [...document.querySelectorAll('#dashboardKpis .dashboard-kpi')];
-  const passRate = moduleRows.assessments.length ? Math.round(moduleRows.assessments.filter((row) => row.passed).length / moduleRows.assessments.length * 100) : null;
-  const exams = kpis.find((card) => card.querySelector('span')?.textContent === 'Exam pass rate');
-  if (exams) { exams.querySelector('strong').textContent = passRate === null ? 'No results' : `${passRate}%`; exams.querySelector('small').textContent = `${moduleRows.assessments.length} recorded attempts`; }
   const plans = kpis.find((card) => card.querySelector('span')?.textContent === 'Active IDPs');
   if (plans) { plans.querySelector('strong').textContent = moduleRows.plans.filter((row) => row.status !== 'Completed').length; plans.querySelector('small').textContent = 'Open development goals'; }
 }
@@ -516,7 +512,7 @@ window.addEventListener('development-modules-refresh', () => {
   void loadDevelopmentModulesForSession({ user: { id: moduleSessionUserId } });
 });
 window.openDevelopmentModule = (action) => {
-  const moduleName = ({ development: 'plans', certificates: 'certificates', tests: 'assessments' })[action];
+  const moduleName = ({ development: 'plans', certificates: 'certificates' })[action];
   if (!moduleName) return;
   document.querySelector('[data-view="modules"]').click();
   document.querySelector(`[data-module-view="${moduleName}"]`).click();
