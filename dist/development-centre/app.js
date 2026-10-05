@@ -7,6 +7,9 @@ let assignments = JSON.parse(localStorage.getItem(trainingKey) || '[]');
 let activeResourceCategory = 'Job descriptions';
 let selectedResourceId = null;
 let selectedQuarter = currentQuarterKey();
+let trainingCalendar = null;
+let activeSession = null;
+let sessionSaving = false;
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 function cloudClient() { return window.parent?.supabaseClient || window.supabaseClient || null; }
@@ -35,7 +38,7 @@ async function loadCloudDevelopmentData() {
     resources = migratedResources;
     assignments = assignments.map((assignment) => ({ ...assignment, resourceId: resourceIds.get(assignment.resourceId) || assignment.resourceId }));
   }
-  if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, scheduledDate: assignment.scheduled_date, scheduledTime: assignment.scheduled_time, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
+  if (cloudAssignments?.length) assignments = cloudAssignments.map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter || currentQuarterKey(new Date(`${assignment.assigned_date}T00:00:00`)), assignedDate: assignment.assigned_date, scheduledDate: assignment.scheduled_date, scheduledTime: assignment.scheduled_time, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, attended: assignment.attended ?? null, skillsToDevelop: assignment.skills_to_develop || [] }));
   save(); renderResources(); renderAssignmentOptions(); renderDashboard(); renderEmployeeLearning();
   if ($('#trackerView').classList.contains('active')) renderTracker();
 }
@@ -294,6 +297,113 @@ function renderAssignmentOptions() {
   $('#trainingDepartmentFilter').innerHTML = '<option value="all">All departments</option>' + departments.map((department) => `<option>${escapeHtml(department)}</option>`).join('');
 }
 function assignmentIsOverdue(assignment) { return assignment.status !== 'Completed' && assignment.dueDate && assignment.dueDate < new Date().toISOString().slice(0, 10); }
+function trainingSessions() {
+  const sessions = new Map();
+  assignments.filter((assignment) => assignment.scheduledDate && resources.some((resource) => resource.id === assignment.resourceId && ['Courses', 'Trainings'].includes(resource.category))).forEach((assignment) => {
+    const time = (assignment.scheduledTime || '').slice(0, 5);
+    const key = JSON.stringify([assignment.resourceId, assignment.scheduledDate, time]);
+    if (!sessions.has(key)) sessions.set(key, { key, resourceId: assignment.resourceId, date: assignment.scheduledDate, time, assignments: [] });
+    sessions.get(key).assignments.push(assignment);
+  });
+  return [...sessions.values()];
+}
+function renderTrainingCalendar() {
+  const [year, quarter] = selectedQuarter.split('-Q').map(Number);
+  const start = new Date(year, (quarter - 1) * 3, 1);
+  const end = new Date(year, quarter * 3, 1);
+  const sessions = trainingSessions().filter((session) => new Date(`${session.date}T00:00:00`) >= start && new Date(`${session.date}T00:00:00`) < end);
+  $('#calendarEmpty').hidden = sessions.length > 0;
+  if (!window.FullCalendar) {
+    $('#trainingCalendar').innerHTML = sessions.map((session) => `<button class="secondary-button calendar-fallback" type="button" data-training-session="${escapeHtml(session.key)}">${escapeHtml(session.date)} ${escapeHtml(session.time)} - ${escapeHtml(resources.find((resource) => resource.id === session.resourceId)?.title)}</button>`).join('');
+    return;
+  }
+  const events = sessions.map((session) => ({ id: session.key, title: `${resources.find((resource) => resource.id === session.resourceId)?.title} (${session.assignments.length})`, start: `${session.date}${session.time ? `T${session.time}` : ''}`, allDay: !session.time, backgroundColor: session.assignments.every((assignment) => assignment.status === 'Completed') ? '#527b61' : '#167f86', borderColor: 'transparent' }));
+  const range = { start, end };
+  if (!trainingCalendar) {
+    trainingCalendar = new FullCalendar.Calendar($('#trainingCalendar'), { initialView: 'dayGridMonth', initialDate: start, validRange: range, height: 'auto', eventDisplay: 'block', headerToolbar: { left: 'prev,next', center: 'title', right: 'dayGridMonth,listMonth' }, buttonText: { month: 'Month', list: 'Agenda' }, eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false }, eventClick: (info) => openTrainingSession(info.event.id), eventDidMount: (info) => { info.el.title = info.event.title; }, events });
+    trainingCalendar.render();
+  } else {
+    trainingCalendar.setOption('validRange', range);
+    if (trainingCalendar.getDate() < start || trainingCalendar.getDate() >= end) trainingCalendar.gotoDate(start);
+    trainingCalendar.removeAllEventSources();
+    trainingCalendar.addEventSource(events);
+    trainingCalendar.updateSize();
+  }
+}
+function openTrainingSession(key) {
+  const session = trainingSessions().find((item) => item.key === key);
+  if (!session) return notify('This session is no longer available.');
+  activeSession = key;
+  const resource = resources.find((item) => item.id === session.resourceId);
+  const employeeMap = new Map(employees().map((employee) => [employee.id, employee]));
+  $('#sessionTitle').textContent = resource.title;
+  $('#sessionCourse').innerHTML = learningResourceTitle(resource);
+  $('#sessionDate').textContent = new Date(`${session.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  $('#sessionTime').textContent = session.time || 'Time to be confirmed';
+  $('#sessionError').textContent = '';
+  $('#sessionRoster').innerHTML = session.assignments.map((assignment) => {
+    const employee = employeeMap.get(assignment.employeeId);
+    const result = assignment.resultStatus || 'Pending';
+    return `<tr data-session-assignment="${escapeHtml(assignment.id)}"><td><strong>${escapeHtml(employee?.name || 'Unknown employee')}</strong></td><td>${escapeHtml(employee?.department || '')}</td><td><input type="checkbox" data-session-attended aria-label="${escapeHtml(employee?.name || 'Employee')} attended" ${assignment.attended === true ? 'checked' : ''} /></td><td><select data-session-result aria-label="Result for ${escapeHtml(employee?.name || 'employee')}" ${assignment.attended !== true ? 'disabled' : ''}><option value="Pending" ${result === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${result === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${result === 'Failed' ? 'selected' : ''}>Failed</option></select></td></tr>`;
+  }).join('');
+  switchView('trainingSession');
+}
+function sessionOutcome(assignment, attended, result, finish, completedDate) {
+  if (!finish && !(assignment.status === 'Completed' && !attended)) return { ...assignment, attended };
+  const resultStatus = attended ? result : 'Failed';
+  const passedDate = resultStatus === 'Passed' ? assignment.passedDate || completedDate : null;
+  const validity = passedDate ? new Date(`${passedDate}T00:00:00`) : null;
+  if (validity) validity.setFullYear(validity.getFullYear() + 1);
+  const trainingValidUntil = validity ? `${validity.getFullYear()}-${String(validity.getMonth() + 1).padStart(2, '0')}-${String(validity.getDate()).padStart(2, '0')}` : null;
+  return { ...assignment, attended, status: 'Completed', completedDate, resultStatus, resultSource: 'manual', passedDate, trainingValidUntil };
+}
+$('#backToTracker').addEventListener('click', () => switchView('tracker'));
+$('#trainingCalendar').addEventListener('click', (event) => { const button = event.target.closest('[data-training-session]'); if (button) openTrainingSession(button.dataset.trainingSession); });
+$('#sessionRoster').addEventListener('change', (event) => {
+  if (!event.target.matches('[data-session-attended]')) return;
+  const select = event.target.closest('tr').querySelector('[data-session-result]');
+  select.disabled = !event.target.checked;
+  select.value = 'Pending';
+});
+$('#trainingSessionForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (sessionSaving) return;
+  const session = trainingSessions().find((item) => item.key === activeSession);
+  if (!session) return notify('This session is no longer available.');
+  const finish = event.submitter?.value === 'finish';
+  const rows = [...$('#sessionRoster').querySelectorAll('[data-session-assignment]')];
+  const today = new Date();
+  const completedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  if (finish && new Date(`${session.date}T${session.time || '00:00'}`) > today) { $('#sessionError').textContent = 'This training has not started yet.'; return; }
+  if (finish && rows.some((row) => row.querySelector('[data-session-attended]').checked && row.querySelector('[data-session-result]').value === 'Pending')) { $('#sessionError').textContent = 'Choose Passed or Failed for every attendee.'; return; }
+  const updates = rows.map((row) => sessionOutcome(session.assignments.find((assignment) => assignment.id === row.dataset.sessionAssignment), row.querySelector('[data-session-attended]').checked, row.querySelector('[data-session-result]').value, finish, completedDate));
+  sessionSaving = true;
+  $('#trainingSessionForm').querySelectorAll('button,input,select').forEach((control) => { control.disabled = true; });
+  try {
+    const client = cloudClient();
+    if (client) {
+      if (updates.some((assignment) => String(assignment.id).startsWith('training-'))) throw new Error('Reload cloud bookings before saving attendance.');
+      const payload = updates.map((assignment) => ({ id: assignment.id, employee_id: assignment.employeeId, resource_id: assignment.resourceId, quarter: assignment.quarter, assigned_date: assignment.assignedDate, scheduled_date: assignment.scheduledDate, scheduled_time: assignment.scheduledTime || null, due_date: assignment.dueDate || null, status: assignment.status, completed_date: assignment.completedDate || null, result_status: assignment.resultStatus || 'Pending', result_source: assignment.resultSource || 'manual', passed_date: assignment.passedDate || null, training_valid_until: assignment.trainingValidUntil || null, skills_to_develop: assignment.skillsToDevelop || [], attended: assignment.attended }));
+      const { data, error } = await client.from('training_assignments').upsert(payload).select();
+      if (error) throw error;
+      if (data.length !== updates.length) throw new Error('Not all attendance records were saved.');
+      updates.forEach((assignment) => { const saved = data.find((item) => item.id === assignment.id); assignment.resultStatus = saved.result_status; assignment.passedDate = saved.passed_date; assignment.trainingValidUntil = saved.training_valid_until; });
+    }
+    const updateMap = new Map(updates.map((assignment) => [assignment.id, assignment]));
+    assignments = assignments.map((assignment) => updateMap.get(assignment.id) || assignment);
+    save();
+    renderDashboard();
+    renderEmployeeLearning();
+    window.dispatchEvent(new Event('development-modules-refresh'));
+    notify(finish ? 'Training completed. Absent employees marked Failed.' : 'Attendance saved.');
+  } catch (error) {
+    $('#sessionError').textContent = `Could not save training: ${error.message}`;
+  } finally {
+    sessionSaving = false;
+    $('#trainingSessionForm').querySelectorAll('button,input,select').forEach((control) => { control.disabled = false; });
+    $('#sessionRoster').querySelectorAll('tr').forEach((row) => { row.querySelector('[data-session-result]').disabled = !row.querySelector('[data-session-attended]').checked; });
+  }
+});
 function renderTracker() {
   const employeeMap = new Map(employees().map((employee) => [employee.id, employee]));
   const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
@@ -303,8 +413,7 @@ function renderTracker() {
   const completionRate = quarterAssignments.length ? Math.round((completed / quarterAssignments.length) * 100) : 0;
   $('#trackerQuarterLabel').textContent = quarterLabel(selectedQuarter);
   $('#trackerSummary').innerHTML = `<div class="summary-card"><span>Quarter assignments</span><strong>${quarterAssignments.length}</strong></div><div class="summary-card"><span>In progress</span><strong>${quarterAssignments.filter((assignment) => assignment.status === 'In progress').length}</strong></div><div class="summary-card"><span>Completed</span><strong>${completed}<small>/${quarterAssignments.length}</small></strong></div><div class="summary-card summary-alert"><span>Overdue</span><strong>${overdue}<small>${completionRate}% complete</small></strong></div>`;
-  const recommended = resources.filter((resource) => resource.recommended && ['Courses', 'Trainings'].includes(resource.category));
-  $('#recommendedList').innerHTML = recommended.length ? recommended.map((resource) => `<button class="recommended-card" type="button" data-recommended-resource="${escapeHtml(resource.id)}"><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.category)} · ${escapeHtml(resource.department)}</small></button>`).join('') : '<p class="learning-empty">Mark courses or trainings as recommended in the resource library.</p>';
+  renderTrainingCalendar();
   const query = $('#trainingSearch').value.toLowerCase().trim();
   const statusFilter = $('#trainingStatusFilter').value;
   const departmentFilter = $('#trainingDepartmentFilter').value;
@@ -321,8 +430,8 @@ function renderTracker() {
     const overdueClass = assignmentIsOverdue(assignment) ? ' overdue-row' : '';
     const statusClass = assignment.status.toLowerCase().replace(/\s+/g, '-');
     const resultStatus = assignment.resultStatus || 'Pending';
-    const resultDisabled = assignment.status !== 'Completed' || assignment.resultSource === 'assessment';
-    const resultTitle = assignment.resultSource === 'assessment' ? 'Set by latest assessment score.' : 'Set after training is completed.';
+    const resultDisabled = assignment.status !== 'Completed' || assignment.resultSource === 'assessment' || assignment.attended === false;
+    const resultTitle = assignment.attended === false ? 'Absent employees automatically fail.' : assignment.resultSource === 'assessment' ? 'Set by latest assessment score.' : 'Set after training is completed.';
     return `<tr class="${overdueClass}"><td><strong>${escapeHtml(employee.name)}</strong></td><td>${escapeHtml(employee.department)}</td><td><strong>${escapeHtml(resource.title)}</strong><small class="resource-type">${escapeHtml(resource.category)}</small></td><td>${escapeHtml(assignment.assignedDate)}</td><td>${escapeHtml(assignment.dueDate || 'No due date')}</td><td><select class="status status-${statusClass}" data-status-assignment="${assignment.id}"><option ${assignment.status === 'Assigned' ? 'selected' : ''}>Assigned</option><option ${assignment.status === 'In progress' ? 'selected' : ''}>In progress</option><option ${assignment.status === 'Completed' ? 'selected' : ''}>Completed</option></select>${assignmentIsOverdue(assignment) ? '<small class="overdue-label">Overdue</small>' : ''}</td><td><select class="status result-${resultStatus.toLowerCase()}" data-result-assignment="${assignment.id}" title="${resultTitle}" ${resultDisabled ? 'disabled' : ''}><option value="Pending" ${resultStatus === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${resultStatus === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${resultStatus === 'Failed' ? 'selected' : ''}>Failed</option></select></td><td>${escapeHtml(assignment.trainingValidUntil || 'Not issued')}</td><td><button class="row-action" data-delete-assignment="${assignment.id}" type="button">Delete</button></td></tr>`;
   }).join('') : '<tr><td colspan="9" class="empty-state">No matching assignments for this quarter.</td></tr>';
 }
@@ -342,7 +451,7 @@ async function openLearningResource(resourceId) {
   switchView('library');
   await previewResource(resource);
 }
-function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); $('#modulesView').classList.toggle('active', view === 'modules'); if (window.parent !== window && typeof window.parent.syncSidebarNav === 'function') window.parent.syncSidebarNav('development', view); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } if (view === 'modules') window.renderDevelopmentModules?.(); }
+function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view || (view === 'trainingSession' && tab.dataset.view === 'tracker'))); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); $('#trainingSessionView').classList.toggle('active', view === 'trainingSession'); $('#modulesView').classList.toggle('active', view === 'modules'); if (window.parent !== window && typeof window.parent.syncSidebarNav === 'function') window.parent.syncSidebarNav('development', view === 'trainingSession' ? 'tracker' : view); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } if (view === 'modules') window.renderDevelopmentModules?.(); }
 
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
 document.querySelectorAll('[data-learning-action]').forEach((button) => button.addEventListener('click', () => { const action = button.dataset.learningAction; if (['library', 'tracker'].includes(action)) switchView(action); else if (window.openDevelopmentModule) window.openDevelopmentModule(action); else notify(`${button.textContent.trim()} is not available yet.`); }));
@@ -350,7 +459,6 @@ document.querySelectorAll('.resource-tabs .resource-tab').forEach((tab) => tab.a
 $('#openResourceForm').addEventListener('click', () => openModal('resourceModal'));
 $('#openAssignmentForm').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#dashboardAssignButton').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
-$('#recommendedList').addEventListener('click', (event) => { const button = event.target.closest('[data-recommended-resource]'); if (!button) return; renderAssignmentOptions(); $('#assignmentResource').value = button.dataset.recommendedResource; openModal('assignmentModal'); });
 $('#learningEmployeeSelect').addEventListener('change', renderEmployeeLearning);
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 $('#libraryDepartment').addEventListener('change', renderResources);
@@ -631,6 +739,11 @@ document.addEventListener('change', async (event) => {
   const assignment = assignments.find((item) => item.id === result.dataset.resultAssignment);
   if (!assignment) return;
   const previousResult = assignment.resultStatus || 'Pending';
+  if (assignment.attended === false) {
+    result.value = previousResult;
+    notify('Absent employees automatically fail. Update attendance on the session page first.');
+    return;
+  }
   if (assignment.status !== 'Completed') {
     result.value = previousResult;
     notify('Mark the training Completed before recording an outcome.');

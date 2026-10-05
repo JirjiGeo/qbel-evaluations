@@ -36,6 +36,14 @@ A modern, real-time employee evaluation system built with vanilla JavaScript and
    - Open `index.html` in your browser
    - Or run a local server: `python -m http.server 8000`
 
+### Training Calendar and Attendance
+
+For an existing Supabase database, run [scripts/training-attendance.sql](scripts/training-attendance.sql) in the Supabase SQL Editor before using the new attendance controls. New databases include these changes in [supabase-schema.sql](supabase-schema.sql).
+
+The Training tracker calendar groups bookings by course, scheduled date, and start time. Select a session to open its employee roster. Save attendance during training, then select Passed or Failed for each attendee and choose Finish training. Unchecked employees automatically fail when training is finished. Attendance and results remain available when reopening the session.
+
+The calendar uses FullCalendar from jsDelivr. If the CDN is unavailable, a clickable booking list is shown instead. Unscheduled assignments remain in the tracker table.
+
 ### Deployment
 
 See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions on:
