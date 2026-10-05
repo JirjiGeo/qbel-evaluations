@@ -42,6 +42,8 @@ For an existing Supabase database, run [scripts/training-attendance.sql](scripts
 
 The Training tracker calendar groups bookings by course, scheduled date, and start time. Select a session to open its employee roster. Save attendance during training, then select Passed or Failed for each attendee and choose Finish training. Unchecked employees automatically fail when training is finished. Attendance and results remain available when reopening the session.
 
+Finish training saves all session assignments as Completed and returns to the calendar only after a successful save. For supporting documents, run [scripts/training-documents.sql](scripts/training-documents.sql) in the Supabase SQL Editor. Each session displays its course resource and supporting documents, with preview, download, upload, and supporting-document deletion. Supporting documents are shared by bookings of the same course. Deleting one does not delete the course or employee assignments. Files use the existing private `development-resources` storage bucket.
+
 The calendar uses FullCalendar from jsDelivr. If the CDN is unavailable, a clickable booking list is shown instead. Unscheduled assignments remain in the tracker table.
 
 ### Deployment

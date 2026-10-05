@@ -343,7 +343,7 @@ function openTrainingSession(key) {
   $('#sessionError').textContent = '';
   $('#sessionRoster').innerHTML = session.assignments.map((assignment) => {
     const employee = employeeMap.get(assignment.employeeId);
-    const result = assignment.resultStatus || 'Pending';
+    const result = assignment.attended === true ? assignment.resultStatus || 'Pending' : 'Failed';
     return `<tr data-session-assignment="${escapeHtml(assignment.id)}"><td><strong>${escapeHtml(employee?.name || 'Unknown employee')}</strong></td><td>${escapeHtml(employee?.department || '')}</td><td><input type="checkbox" data-session-attended aria-label="${escapeHtml(employee?.name || 'Employee')} attended" ${assignment.attended === true ? 'checked' : ''} /></td><td><select data-session-result aria-label="Result for ${escapeHtml(employee?.name || 'employee')}" ${assignment.attended !== true ? 'disabled' : ''}><option value="Pending" ${result === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${result === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${result === 'Failed' ? 'selected' : ''}>Failed</option></select></td></tr>`;
   }).join('');
   switchView('trainingSession');
@@ -363,7 +363,7 @@ $('#sessionRoster').addEventListener('change', (event) => {
   if (!event.target.matches('[data-session-attended]')) return;
   const select = event.target.closest('tr').querySelector('[data-session-result]');
   select.disabled = !event.target.checked;
-  select.value = 'Pending';
+  select.value = event.target.checked ? 'Pending' : 'Failed';
 });
 $('#trainingSessionForm').addEventListener('submit', async (event) => {
   event.preventDefault();
