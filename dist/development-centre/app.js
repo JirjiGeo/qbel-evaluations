@@ -286,9 +286,6 @@ function renderResources() {
 function renderAssignmentOptions() {
   const employeeOptions = employees().map((employee) => `<option value="${escapeHtml(employee.id)}">${escapeHtml(employee.name)} · ${escapeHtml(employee.department)}</option>`).join('');
   $('#assignmentEmployee').innerHTML = employeeOptions || '<option value="">No employees found</option>';
-  const currentProfileEmployee = $('#profileEmployeeSelect')?.value;
-  $('#profileEmployeeSelect').innerHTML = employeeOptions || '<option value="">No employees found</option>';
-  if (currentProfileEmployee && employees().some((employee) => employee.id === currentProfileEmployee)) $('#profileEmployeeSelect').value = currentProfileEmployee;
   const resourceOptions = resources.filter((resource) => ['Courses', 'Trainings'].includes(resource.category)).map((resource) => `<option value="${escapeHtml(resource.id)}">${escapeHtml(resource.title)} · ${escapeHtml(resource.category)}</option>`).join('');
   $('#assignmentResource').innerHTML = resourceOptions || '<option value="">Add a course or training first</option>';
   $('#trackerQuarter').innerHTML = quarterOptions().map((quarter) => `<option value="${quarter}" ${quarter === selectedQuarter ? 'selected' : ''}>${quarterLabel(quarter)}</option>`).join('');
@@ -328,7 +325,6 @@ function renderTracker() {
     const resultTitle = assignment.resultSource === 'assessment' ? 'Set by latest assessment score.' : 'Set after training is completed.';
     return `<tr class="${overdueClass}"><td><strong>${escapeHtml(employee.name)}</strong></td><td>${escapeHtml(employee.department)}</td><td><strong>${escapeHtml(resource.title)}</strong><small class="resource-type">${escapeHtml(resource.category)}</small></td><td>${escapeHtml(assignment.assignedDate)}</td><td>${escapeHtml(assignment.dueDate || 'No due date')}</td><td><select class="status status-${statusClass}" data-status-assignment="${assignment.id}"><option ${assignment.status === 'Assigned' ? 'selected' : ''}>Assigned</option><option ${assignment.status === 'In progress' ? 'selected' : ''}>In progress</option><option ${assignment.status === 'Completed' ? 'selected' : ''}>Completed</option></select>${assignmentIsOverdue(assignment) ? '<small class="overdue-label">Overdue</small>' : ''}</td><td><select class="status result-${resultStatus.toLowerCase()}" data-result-assignment="${assignment.id}" title="${resultTitle}" ${resultDisabled ? 'disabled' : ''}><option value="Pending" ${resultStatus === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${resultStatus === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${resultStatus === 'Failed' ? 'selected' : ''}>Failed</option></select></td><td>${escapeHtml(assignment.trainingValidUntil || 'Not issued')}</td><td><button class="row-action" data-delete-assignment="${assignment.id}" type="button">Delete</button></td></tr>`;
   }).join('') : '<tr><td colspan="9" class="empty-state">No matching assignments for this quarter.</td></tr>';
-  renderLearningProfile();
 }
 function learningResourceTitle(resource) {
   return resource
@@ -346,19 +342,6 @@ async function openLearningResource(resourceId) {
   switchView('library');
   await previewResource(resource);
 }
-function learningItem(assignment, resourceMap) { const resource = resourceMap.get(assignment.resourceId); return `<article class="learning-item">${learningResourceTitle(resource)}<small>${escapeHtml(assignment.dueDate || assignment.assignedDate)}${assignment.status === 'Completed' ? ' · Completed' : ''}</small></article>`; }
-function renderLearningProfile() {
-  const employeeId = $('#profileEmployeeSelect')?.value;
-  const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
-  const employeeAssignments = assignments.filter((assignment) => assignment.employeeId === employeeId);
-  const attended = employeeAssignments.filter((assignment) => assignment.status === 'Completed');
-  const upcoming = employeeAssignments.filter((assignment) => assignment.status !== 'Completed');
-  const courses = attended.filter((assignment) => resourceMap.get(assignment.resourceId)?.category === 'Courses');
-  const renderList = (items) => items.length ? items.map((item) => learningItem(item, resourceMap)).join('') : '<p class="learning-empty">No records yet.</p>';
-  $('#attendedTrainings').innerHTML = renderList(attended);
-  $('#upcomingTrainings').innerHTML = renderList(upcoming);
-  $('#coursesTaken').innerHTML = renderList(courses);
-}
 function switchView(view) { document.querySelectorAll('.section-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view)); $('#dashboardView').classList.toggle('active', view === 'dashboard'); $('#learningView').classList.toggle('active', view === 'learning'); $('#libraryView').classList.toggle('active', view === 'library'); $('#trackerView').classList.toggle('active', view === 'tracker'); $('#modulesView').classList.toggle('active', view === 'modules'); if (window.parent !== window && typeof window.parent.syncSidebarNav === 'function') window.parent.syncSidebarNav('development', view); if (view === 'dashboard') renderDashboard(); if (view === 'learning') renderEmployeeLearning(); if (view === 'tracker') { renderAssignmentOptions(); renderTracker(); } if (view === 'modules') window.renderDevelopmentModules?.(); }
 
 document.querySelectorAll('.section-tab').forEach((tab) => tab.addEventListener('click', () => switchView(tab.dataset.view)));
@@ -369,7 +352,6 @@ $('#openAssignmentForm').addEventListener('click', () => { renderAssignmentOptio
 $('#dashboardAssignButton').addEventListener('click', () => { renderAssignmentOptions(); openModal('assignmentModal'); });
 $('#recommendedList').addEventListener('click', (event) => { const button = event.target.closest('[data-recommended-resource]'); if (!button) return; renderAssignmentOptions(); $('#assignmentResource').value = button.dataset.recommendedResource; openModal('assignmentModal'); });
 $('#learningEmployeeSelect').addEventListener('change', renderEmployeeLearning);
-$('#profileEmployeeSelect').addEventListener('change', renderLearningProfile);
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
 $('#libraryDepartment').addEventListener('change', renderResources);
 $('#trackerQuarter').addEventListener('change', (event) => { selectedQuarter = event.target.value; renderTracker(); });
