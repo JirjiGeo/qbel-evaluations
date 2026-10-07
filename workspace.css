@@ -2,7 +2,7 @@
   --workspace-ink: #202b29;
   --workspace-muted: #64746d;
   --workspace-line: #dde5e0;
-  --workspace-paper: #eef2f0;
+  --workspace-paper: #f6f8f7;
   --workspace-green: #013220;
   --workspace-heading: 'Space Grotesk', sans-serif;
   --workspace-body: 'DM Sans', sans-serif;
@@ -19,6 +19,10 @@
 body {
   background: var(--workspace-paper);
   font-family: var(--workspace-body);
+}
+
+body #employeesOverview {
+  background: #edf5ef;
 }
 
 body .main-content,
