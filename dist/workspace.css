@@ -177,6 +177,7 @@ body .development-app #dashboardView .dashboard-kpi:nth-child(n) {
 }
 body .development-app #dashboardView :is(.dashboard-kpi, .dashboard-panel, .dashboard-empty, .atlas-signals > div, .impact-levels > div, #skillGapSummary .learning-item) {
   border: 1px solid #013220;
+  box-shadow: 0 3px 10px rgba(1, 50, 32, 0.08);
 }
 body .development-app #dashboardView .dashboard-panel {
   padding: 20px;
