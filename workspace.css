@@ -338,6 +338,32 @@ body .development-app #libraryView .resource-card.selected .resource-icon {
   color: #fff;
 }
 
+body .development-app :is(#learningView, #libraryView, #trackerView, #modulesView) :is(.dashboard-panel, .learning-profile, .recommended-panel, .module-panel, .filter-panel, .portal-learning-rail, .learning-validity-chart) {
+  padding: 20px;
+  border: 1px solid #013220;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(1, 50, 32, 0.08);
+}
+body .development-app :is(#learningView, #libraryView, #trackerView, #modulesView) :is(.learning-kpi, .summary-card, .recommended-card, .resource-card, .resource-preview, .module-record, .tracker-table-wrap, .learning-progress-banner, .next-session-banner, .course-row, .certificate-item, .learning-column, .roadmap-step) {
+  border-color: #013220;
+  box-shadow: 0 3px 10px rgba(1, 50, 32, 0.08);
+}
+body .development-app :is(#learningView, #libraryView, #trackerView, #modulesView) :is(#learningSkills, #learningCertificates, #certificationAlerts) {
+  display: grid;
+  gap: 8px;
+}
+body .development-app :is(#learningView, #libraryView, #trackerView, #modulesView) :is(#learningSkills, #learningCertificates, #certificationAlerts) .learning-item {
+  padding: 12px;
+  border: 1px solid #013220;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(1, 50, 32, 0.08);
+}
+body .development-app :is(#learningView, #libraryView, #trackerView, #modulesView) .learning-column {
+  border: 1px solid #013220;
+}
+
 body .qbel-nav .qbel-nav-link {
   display: flex;
   align-items: center;
