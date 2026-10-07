@@ -22,7 +22,7 @@ body {
 }
 
 body #employeesOverview {
-  background: #edf5ef;
+  background: #eef2f0;
 }
 
 body .main-content,
@@ -234,6 +234,7 @@ body .development-app :is(.resource-card, .resource-preview, .tracker-table-wrap
   border-radius: 8px;
   box-shadow: none;
 }
+body #employeesOverview .employee-card { border-color: #013220; }
 body .main-content :is(.employee-card, .stat-card):hover,
 body .development-app .resource-card:hover { transform: none; box-shadow: none; }
 body .main-content .employee-grid { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
