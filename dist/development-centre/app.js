@@ -180,8 +180,14 @@ function renderDashboard() {
     return { department, percentage: departmentAssignments.length ? Math.round((completed / departmentAssignments.length) * 100) : 0, completed, total: departmentAssignments.length };
   });
   $('#departmentCompletion').innerHTML = departmentCounts.length ? departmentCounts.map((item) => `<div class="progress-row"><div><strong>${escapeHtml(item.department)}</strong><small>${item.completed}/${item.total} completed</small></div><div class="dashboard-progress"><span style="width:${item.percentage}%"></span></div><b>${item.percentage}%</b></div>`).join('') : '<div class="dashboard-empty"><strong>No department activity yet.</strong><span>Assign a course or training to start measuring completion.</span></div>';
-  const upcoming = assignments.filter((assignment) => assignment.status !== 'Completed' && assignment.dueDate).sort((first, second) => first.dueDate.localeCompare(second.dueDate)).slice(0, 5);
-  $('#upcomingCourses').innerHTML = upcoming.length ? upcoming.map((assignment) => { const employee = employeeMap.get(assignment.employeeId); const resource = resourceMap.get(assignment.resourceId); return `<div class="upcoming-item"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${escapeHtml(employee?.name || 'Unknown employee')}</small></div><time>${escapeHtml(assignment.dueDate)}</time></div>`; }).join('') : '<div class="dashboard-empty"><strong>No upcoming activity.</strong><span>Assignments with due dates will appear here.</span></div>';
+  const now = new Date();
+  const upcoming = trainingSessions().filter((session) => new Date(`${session.date}T${session.time || '23:59'}`) > now)
+    .sort((first, second) => `${first.date}T${first.time || '23:59'}`.localeCompare(`${second.date}T${second.time || '23:59'}`)).slice(0, 5);
+  $('#upcomingCourses').innerHTML = upcoming.length ? upcoming.map((session) => {
+    const resource = resourceMap.get(session.resourceId);
+    const attendeeCount = session.assignments.length;
+    return `<button class="upcoming-item" type="button" data-training-session="${escapeHtml(session.key)}"><div><strong>${escapeHtml(resource?.title || 'Deleted resource')}</strong><small>${attendeeCount} ${attendeeCount === 1 ? 'attendee' : 'attendees'}</small></div><time>${escapeHtml(session.date)}${session.time ? ` · ${escapeHtml(session.time)}` : ''}</time></button>`;
+  }).join('') : '<div class="dashboard-empty"><strong>No upcoming trainings.</strong><span>Scheduled courses and trainings will appear here.</span></div>';
 }
 function openModal(id) { const modal = $(`#${id}`); modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); }
 function closeModal(id) { const modal = $(`#${id}`); modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); }
@@ -514,6 +520,7 @@ function sessionOutcome(assignment, attended, result, finish, completedDate) {
 }
 $('#backToTracker').addEventListener('click', () => switchView('tracker'));
 $('#trainingCalendar').addEventListener('click', (event) => { const button = event.target.closest('[data-training-session]'); if (button) openTrainingSession(button.dataset.trainingSession); });
+$('#upcomingCourses').addEventListener('click', (event) => { const button = event.target.closest('[data-training-session]'); if (button) openTrainingSession(button.dataset.trainingSession); });
 $('#sessionRoster').addEventListener('change', (event) => {
   if (!event.target.matches('[data-session-attended]')) return;
   const select = event.target.closest('tr').querySelector('[data-session-result]');

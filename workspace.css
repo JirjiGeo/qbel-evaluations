@@ -175,6 +175,9 @@ body .development-app #dashboardView .dashboard-kpi:nth-child(n) {
   border: 1px solid var(--workspace-line);
   background: #fff;
 }
+body .development-app #dashboardView :is(.dashboard-kpi, .dashboard-panel, .dashboard-empty, .atlas-signals > div, .impact-levels > div, #skillGapSummary .learning-item) {
+  border: 1px solid #013220;
+}
 body .development-app :is(#dashboardView, #trackerView, #learningView) :is(.dashboard-kpi span, .dashboard-kpi small, .summary-card span, .learning-kpi-top > span:first-child) {
   color: var(--workspace-muted);
   font-size: 11px;
@@ -240,6 +243,8 @@ body #scoreHistoryModal button { border: 1px solid #013220; }
 body .main-content :is(.employee-card, .stat-card):hover,
 body .development-app .resource-card:hover { transform: none; box-shadow: none; }
 body .main-content .employee-grid { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
+body .development-app #upcomingCourses .upcoming-item { width: 100%; border: 0; border-bottom: 1px solid var(--workspace-line); background: transparent; color: var(--workspace-ink); font: inherit; text-align: left; cursor: pointer; }
+body .development-app #upcomingCourses .upcoming-item:hover { background: #f1f6f2; }
 body .development-app :is(.dashboard-grid, .employee-portal-layout, .library-layout, .portal-detail-grid) { gap: 24px; }
 body .development-app .module-panel .view-heading { margin-bottom: 20px; }
 body .development-app .module-record-actions { flex-wrap: wrap; justify-content: flex-end; }
