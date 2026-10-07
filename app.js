@@ -685,7 +685,8 @@ function filteredEmployeeDirectory() {
   const selectedDepartment = employeeDepartmentFilter?.value || 'all';
   return employees.filter((employee) => !employee.deleted)
     .filter((employee) => selectedDepartment === 'all' || employee.department === selectedDepartment)
-    .filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query));
+    .filter((employee) => `${employee.name} ${employee.department} ${employee.role || ''} ${employee.reportingTo || ''}`.toLowerCase().includes(query))
+    .sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), undefined, { sensitivity: 'base', numeric: true }));
 }
 
 function renderEmployeeRows() {
@@ -1466,7 +1467,7 @@ function showEmployeeScores(employee) {
     modalElement.className = 'modal-backdrop open';
     modalElement.innerHTML = '<section class="evaluation-modal score-history-modal" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle"><button class="close-button" id="closeScoreHistory" aria-label="Close employee profile">×</button><span class="section-kicker">Employee profile</span><h2 id="scoreHistoryTitle"></h2><p class="score-history-subtitle"></p><div class="employee-profile-tabs"><button type="button" class="employee-profile-tab active" data-profile-tab="evaluations">Evaluations</button><button type="button" class="employee-profile-tab" data-profile-tab="learning">Learning journey</button><button type="button" class="employee-profile-tab" data-profile-tab="assets">Assigned assets</button><button type="button" class="employee-profile-tab" data-profile-tab="documents">Documents</button></div><div class="employee-profile-panel active" data-profile-panel="evaluations"><div class="score-history-list"></div></div><div class="employee-profile-panel" data-profile-panel="learning"><div class="profile-panel-header"><span class="profile-panel-title">Assigned training</span><button type="button" class="profile-open-portal-button" data-open-learning-portal>Open learning path in Development Centre →</button></div><div class="employee-learning-profile"></div></div><div class="employee-profile-panel" data-profile-panel="assets"><div class="employee-assets-profile"></div></div><div class="employee-profile-panel" data-profile-panel="documents"><div class="employee-documents-profile"></div></div></section>';
     modalElement.querySelector('.employee-profile-tabs').insertAdjacentHTML('beforeend', '<button type="button" class="employee-profile-tab" data-profile-tab="development">Development</button>');
-    modalElement.querySelector('.employee-profile-panel[data-profile-panel="documents"]').insertAdjacentHTML('afterend', '<div class="employee-profile-panel" data-profile-panel="development"><div class="employee-development-profile"><section><h3>Development plans</h3><div class="development-plan-records"></div></section><section><h3>Exam results</h3><div class="development-exam-records"></div></section><section><h3>Training impact</h3><div class="development-impact-records"></div></section></div></div>');
+    modalElement.querySelector('.employee-profile-panel[data-profile-panel="documents"]').insertAdjacentHTML('afterend', '<div class="employee-profile-panel" data-profile-panel="development"><div class="employee-development-profile"><section><h3>Development plans</h3><div class="development-plan-records"></div></section><section><h3>Training impact</h3><div class="development-impact-records"></div></section></div></div>');
     document.body.appendChild(modalElement);
     const style = document.createElement('style');
     style.textContent = '.score-history-modal{width:min(920px,100%);max-height:92vh;overflow:auto}.score-history-subtitle{color:var(--muted);font-size:12px}.score-history-list{display:grid;gap:10px;margin-top:20px}.score-history-row{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;background:#f7faf8;border:1px solid #e3ece7;border-radius:8px}.score-history-row strong{font:600 18px "Space Grotesk";color:var(--brand)}.score-history-row small{display:block;color:var(--muted);margin-top:4px}.score-history-score{font:700 22px "Space Grotesk";color:var(--brand);white-space:nowrap}.score-history-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.score-history-actions button{border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--brand);font-size:10px;font-weight:700;padding:7px 9px}.score-history-actions button:hover{background:#f3f7f4}.score-history-actions button[data-history-action="delete"]{color:#b85c52}.score-history-empty{padding:20px;text-align:center;background:#fafafa;color:var(--muted)}@media(max-width:760px){.score-history-row{grid-template-columns:1fr}.score-history-actions{justify-content:flex-start}}';
@@ -1588,7 +1589,6 @@ function renderEmployeeProfileSections(modalElement, employee) {
 async function loadEmployeeDevelopmentProfile(modalElement, employee) {
   const sections = {
     plans: modalElement.querySelector('.development-plan-records'),
-    exams: modalElement.querySelector('.development-exam-records'),
     impact: modalElement.querySelector('.development-impact-records')
   };
   Object.values(sections).forEach((section) => { section.className = 'development-record-list'; section.innerHTML = '<div class="score-history-empty">Loading records...</div>'; });
@@ -1617,18 +1617,16 @@ async function loadEmployeeDevelopmentProfile(modalElement, employee) {
     if (assignmentIds.length) {
       const resourceIds = [...new Set(assignments.map((assignment) => assignment.resource_id).filter(Boolean))];
       const results = await Promise.all([
-        client.from('training_assessment_results').select('assignment_id, attempted_on, score, pass_mark, passed, notes').in('assignment_id', assignmentIds).order('attempted_on', { ascending: false }),
         client.from('training_impact_records').select('assignment_id, measure, before_value, after_value, measured_on, notes').in('assignment_id', assignmentIds).order('measured_on', { ascending: false }),
         resourceIds.length ? client.from('development_resources').select('id, title').in('id', resourceIds) : Promise.resolve({ data: [], error: null })
       ]);
       if (results.some((result) => result.error)) throw results.find((result) => result.error).error;
-      [assessments, impacts, resources] = results.map((result) => result.data || []);
+      [impacts, resources] = results.map((result) => result.data || []);
     }
     if (!document.body.contains(modalElement) || modalElement._profileEmployee?.id !== employee.id) return;
     const assignmentMap = new Map(assignments.map((assignment) => [assignment.id, assignment]));
     const resourceMap = new Map(resources.map((resource) => [resource.id, resource.title]));
     renderRecords(sections.plans, planResult.data || [], (record) => `<article class="development-record"><strong>${escapeHtml(record.goal)}</strong><p>${escapeHtml(record.action_plan)}</p><small>Due ${escapeHtml(record.due_date || 'No date')}</small><span class="development-record-status${record.status === 'On hold' ? ' attention' : ''}">${escapeHtml(record.status || 'Planned')}</span></article>`);
-    renderRecords(sections.exams, assessments, (record) => `<article class="development-record"><strong>${escapeHtml(resourceMap.get(assignmentMap.get(record.assignment_id)?.resource_id) || 'Training assessment')}</strong><small>Attempted ${escapeHtml(record.attempted_on || 'Date not recorded')} · Score ${escapeHtml(record.score)}% · Pass mark ${escapeHtml(record.pass_mark)}%</small><span class="development-record-status${record.passed ? '' : ' attention'}">${record.passed ? 'Passed' : 'Not passed'}</span>${record.notes ? `<p>${escapeHtml(record.notes)}</p>` : ''}</article>`);
     renderRecords(sections.impact, impacts, (record) => `<article class="development-record"><strong>${escapeHtml(record.measure)}</strong><small>${escapeHtml(resourceMap.get(assignmentMap.get(record.assignment_id)?.resource_id) || 'Training activity')} · Measured ${escapeHtml(record.measured_on || 'Date not recorded')}</small><p>${escapeHtml(record.before_value)} → ${escapeHtml(record.after_value)}</p>${record.notes ? `<p>${escapeHtml(record.notes)}</p>` : ''}</article>`);
   } catch (error) {
     console.error('Employee development records could not be loaded:', error);

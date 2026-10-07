@@ -564,11 +564,19 @@ function renderTracker() {
   const employeeMap = new Map(employees().map((employee) => [employee.id, employee]));
   const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
   const quarterAssignments = assignments.filter((assignment) => assignmentQuarter(assignment) === selectedQuarter);
-  const completed = quarterAssignments.filter((assignment) => assignment.status === 'Completed').length;
-  const overdue = quarterAssignments.filter(assignmentIsOverdue).length;
-  const completionRate = quarterAssignments.length ? Math.round((completed / quarterAssignments.length) * 100) : 0;
+  const assignmentsByTraining = new Map();
+  quarterAssignments.forEach((assignment) => {
+    const trainingAssignments = assignmentsByTraining.get(assignment.resourceId) || [];
+    trainingAssignments.push(assignment);
+    assignmentsByTraining.set(assignment.resourceId, trainingAssignments);
+  });
+  const trainingGroups = [...assignmentsByTraining.values()];
+  const completed = trainingGroups.filter((group) => group.every((assignment) => assignment.status === 'Completed')).length;
+  const inProgress = trainingGroups.filter((group) => group.some((assignment) => assignment.status !== 'Assigned') && group.some((assignment) => assignment.status !== 'Completed')).length;
+  const overdue = trainingGroups.filter((group) => group.some(assignmentIsOverdue)).length;
+  const completionRate = trainingGroups.length ? Math.round((completed / trainingGroups.length) * 100) : 0;
   $('#trackerQuarterLabel').textContent = quarterLabel(selectedQuarter);
-  $('#trackerSummary').innerHTML = `<div class="summary-card"><span>Quarter assignments</span><strong>${quarterAssignments.length}</strong></div><div class="summary-card"><span>In progress</span><strong>${quarterAssignments.filter((assignment) => assignment.status === 'In progress').length}</strong></div><div class="summary-card"><span>Completed</span><strong>${completed}<small>/${quarterAssignments.length}</small></strong></div><div class="summary-card summary-alert"><span>Overdue</span><strong>${overdue}<small>${completionRate}% complete</small></strong></div>`;
+  $('#trackerSummary').innerHTML = `<div class="summary-card"><span>Quarter trainings</span><strong>${trainingGroups.length}</strong></div><div class="summary-card"><span>In progress</span><strong>${inProgress}</strong></div><div class="summary-card"><span>Completed</span><strong>${completed}<small>/${trainingGroups.length}</small></strong></div><div class="summary-card summary-alert"><span>Overdue</span><strong>${overdue}<small>${completionRate}% complete</small></strong></div>`;
   renderTrainingCalendar();
   const query = $('#trainingSearch').value.toLowerCase().trim();
   const statusFilter = $('#trainingStatusFilter').value;

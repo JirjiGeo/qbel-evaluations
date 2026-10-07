@@ -1,15 +1,21 @@
 document.body.classList.toggle('embedded', window.self !== window.top);
 const libraryKey = 'qbel-development-library';
 const trainingKey = 'qbel-development-training';
+const trainingDocumentsKey = 'qbel-development-training-documents';
 const resourceBucket = 'development-resources';
 let resources = JSON.parse(localStorage.getItem(libraryKey) || '[]');
 let assignments = JSON.parse(localStorage.getItem(trainingKey) || '[]');
+let trainingDocuments = JSON.parse(localStorage.getItem(trainingDocumentsKey) || '[]');
 let activeResourceCategory = 'Job descriptions';
 let selectedResourceId = null;
 let selectedQuarter = currentQuarterKey();
 let trainingCalendar = null;
 let activeSession = null;
 let sessionSaving = false;
+let documentSaving = false;
+let documentsLoading = false;
+let documentLoadVersion = 0;
+let sessionDocumentPreviewId = null;
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 function cloudClient() { return window.parent?.supabaseClient || window.supabaseClient || null; }
@@ -340,14 +346,163 @@ function openTrainingSession(key) {
   $('#sessionCourse').innerHTML = learningResourceTitle(resource);
   $('#sessionDate').textContent = new Date(`${session.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   $('#sessionTime').textContent = session.time || 'Time to be confirmed';
+  $('#sessionStatus').textContent = session.assignments.every((assignment) => assignment.status === 'Completed') ? 'Completed' : session.assignments.some((assignment) => assignment.status !== 'Assigned') ? 'In progress' : 'Assigned';
   $('#sessionError').textContent = '';
   $('#sessionRoster').innerHTML = session.assignments.map((assignment) => {
     const employee = employeeMap.get(assignment.employeeId);
     const result = assignment.attended === true ? assignment.resultStatus || 'Pending' : 'Failed';
     return `<tr data-session-assignment="${escapeHtml(assignment.id)}"><td><strong>${escapeHtml(employee?.name || 'Unknown employee')}</strong></td><td>${escapeHtml(employee?.department || '')}</td><td><input type="checkbox" data-session-attended aria-label="${escapeHtml(employee?.name || 'Employee')} attended" ${assignment.attended === true ? 'checked' : ''} /></td><td><select data-session-result aria-label="Result for ${escapeHtml(employee?.name || 'employee')}" ${assignment.attended !== true ? 'disabled' : ''}><option value="Pending" ${result === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${result === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${result === 'Failed' ? 'selected' : ''}>Failed</option></select></td></tr>`;
   }).join('');
+  closeSessionDocumentPreview();
+  $('#sessionDocumentForm').reset();
+  $('#sessionDocumentError').textContent = '';
+  renderSessionDocuments();
+  void loadSessionDocuments(session.resourceId, key);
   switchView('trainingSession');
 }
+function saveTrainingDocuments() { localStorage.setItem(trainingDocumentsKey, JSON.stringify(trainingDocuments)); }
+function activeTrainingSession() { return trainingSessions().find((session) => session.key === activeSession); }
+function renderSessionDocuments() {
+  const session = activeTrainingSession();
+  if (!session) return;
+  const course = resources.find((resource) => resource.id === session.resourceId);
+  const documents = trainingDocuments.filter((document) => document.resourceId === session.resourceId);
+  const items = [...(course?.fileName ? [{ ...course, courseFile: true }] : []), ...documents];
+  $('#sessionDocumentList').innerHTML = items.length ? items.map((document) => `<div class="session-document-row"><div><button class="document-title-button" type="button" data-session-document="${escapeHtml(document.id)}"><strong>${escapeHtml(document.title)}</strong></button><small>${escapeHtml(document.fileName)}${document.courseFile ? ' - Course resource' : ''}</small></div><div class="session-document-actions"><button class="secondary-button" type="button" data-download-session-document="${escapeHtml(document.id)}">Download</button>${document.courseFile ? '' : `<button class="danger-button" type="button" data-delete-session-document="${escapeHtml(document.id)}" ${documentSaving || documentsLoading ? 'disabled' : ''}>Delete</button>`}</div></div>`).join('') : '<p class="learning-empty">No training documents attached.</p>';
+  $('#sessionDocumentForm').querySelectorAll('input,button').forEach((control) => { control.disabled = documentSaving || documentsLoading; });
+}
+async function loadSessionDocuments(resourceId, key) {
+  const version = ++documentLoadVersion;
+  const client = cloudClient();
+  documentsLoading = Boolean(client && !String(resourceId).startsWith('resource-'));
+  renderSessionDocuments();
+  if (!documentsLoading) return;
+  try {
+    const { data, error } = await client.from('training_documents').select('*').eq('resource_id', resourceId).order('created_at', { ascending: true });
+    if (version !== documentLoadVersion) return;
+    if (error) throw error;
+    trainingDocuments = [...trainingDocuments.filter((document) => document.resourceId !== resourceId), ...(data || []).map((document) => ({ id: document.id, resourceId: document.resource_id, title: document.title, fileName: document.file_name, fileType: document.file_type, filePath: document.file_path, createdAt: document.created_at }))];
+    saveTrainingDocuments();
+  } catch (error) {
+    if (activeSession === key && version === documentLoadVersion) $('#sessionDocumentError').textContent = `Could not load documents: ${error.message}. Ensure scripts/training-documents.sql has been applied in Supabase.`;
+  } finally {
+    if (version === documentLoadVersion) {
+      documentsLoading = false;
+      if (activeSession === key) renderSessionDocuments();
+    }
+  }
+}
+function findSessionDocument(id) {
+  const session = activeTrainingSession();
+  if (!session) return null;
+  return resources.find((resource) => resource.id === id && resource.id === session.resourceId) || trainingDocuments.find((document) => document.id === id && document.resourceId === session.resourceId);
+}
+function closeSessionDocumentPreview() {
+  sessionDocumentPreviewId = null;
+  $('#sessionDocumentPreview').hidden = true;
+  $('#sessionDocumentPreview').innerHTML = '';
+}
+async function openSessionDocument(document) {
+  const key = activeSession;
+  sessionDocumentPreviewId = document.id;
+  const preview = $('#sessionDocumentPreview');
+  preview.hidden = false;
+  preview.innerHTML = '<div class="preview-loading">Loading document...</div>';
+  try {
+    await loadResourceFile(document);
+    if (activeSession !== key || sessionDocumentPreviewId !== document.id) return;
+    let content;
+    if (isPdf(document)) content = `<object class="resource-pdf" data="${document.dataUrl}" type="application/pdf"><p>PDF preview is unavailable in this browser.</p></object>`;
+    else if (/\.docx$/i.test(document.fileName)) {
+      try { content = `<article class="docx-preview">${docxXmlToHtml(await readDocxDocument(document.dataUrl))}</article>`; }
+      catch (error) { content = officeFallback(document); }
+    } else content = officeFallback(document);
+    if (activeSession !== key || sessionDocumentPreviewId !== document.id) return;
+    preview.innerHTML = `<div class="resource-preview-header"><strong>${escapeHtml(document.title)}</strong><div class="preview-actions"><a class="preview-download" href="${document.dataUrl}" download="${escapeHtml(document.fileName)}">Download</a><button class="row-action" type="button" data-close-session-document>Close</button></div></div>${content}`;
+    preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    if (activeSession === key && sessionDocumentPreviewId === document.id) { closeSessionDocumentPreview(); $('#sessionDocumentError').textContent = `Could not open document: ${error.message}`; }
+  }
+}
+$('#sessionDocumentForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (documentSaving || documentsLoading) return;
+  const session = activeTrainingSession();
+  const file = $('#sessionDocumentFile').files[0];
+  if (!session || !file) return;
+  if (!/\.(pdf|doc|docx|ppt|pptx)$/i.test(file.name)) { $('#sessionDocumentError').textContent = 'Please select a PDF, Word or PowerPoint document.'; return; }
+  const key = activeSession;
+  const document = { id: `document-${crypto.randomUUID()}`, resourceId: session.resourceId, title: $('#sessionDocumentTitle').value.trim() || file.name, fileName: file.name, fileType: fileType(file.name), createdAt: new Date().toISOString() };
+  documentSaving = true;
+  $('#sessionDocumentError').textContent = '';
+  renderSessionDocuments();
+  try {
+    const client = cloudClient();
+    if (client) {
+      if (String(session.resourceId).startsWith('resource-')) throw new Error('Reload the cloud training before uploading documents.');
+      document.filePath = `training-documents/${crypto.randomUUID()}/${file.name.replace(/[\\/]/g, '_')}`;
+      const { error: uploadError } = await client.storage.from(resourceBucket).upload(document.filePath, file, { contentType: file.type || 'application/octet-stream' });
+      if (uploadError) throw uploadError;
+      const { data, error } = await client.from('training_documents').insert({ resource_id: document.resourceId, title: document.title, file_name: document.fileName, file_type: document.fileType, file_path: document.filePath }).select().single();
+      if (error) { await client.storage.from(resourceBucket).remove([document.filePath]); throw error; }
+      document.id = data.id;
+    } else document.dataUrl = await readFile(file);
+    trainingDocuments.push(document);
+    saveTrainingDocuments();
+    if (activeSession === key) $('#sessionDocumentForm').reset();
+    notify('Training document uploaded.');
+  } catch (error) {
+    if (activeSession === key) $('#sessionDocumentError').textContent = `Could not upload document: ${error.message}`;
+  } finally {
+    documentSaving = false;
+    renderSessionDocuments();
+  }
+});
+$('#sessionDocumentList').addEventListener('click', async (event) => {
+  const openButton = event.target.closest('[data-session-document]');
+  if (openButton) { const document = findSessionDocument(openButton.dataset.sessionDocument); if (document) void openSessionDocument(document); return; }
+  const downloadButton = event.target.closest('[data-download-session-document]');
+  if (downloadButton) {
+    const document = findSessionDocument(downloadButton.dataset.downloadSessionDocument);
+    if (!document) return;
+    try {
+      await loadResourceFile(document);
+      const link = window.document.createElement('a');
+      link.href = document.dataUrl;
+      link.download = document.fileName;
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) { $('#sessionDocumentError').textContent = `Could not download document: ${error.message}`; }
+    return;
+  }
+  const deleteButton = event.target.closest('[data-delete-session-document]');
+  if (!deleteButton || documentSaving || documentsLoading) return;
+  const document = trainingDocuments.find((item) => item.id === deleteButton.dataset.deleteSessionDocument && item.resourceId === activeTrainingSession()?.resourceId);
+  if (!document || !window.confirm(`Delete ${document.title}? This removes the supporting document from this course, not the training or its assignments.`)) return;
+  const key = activeSession;
+  documentSaving = true;
+  $('#sessionDocumentError').textContent = '';
+  renderSessionDocuments();
+  try {
+    const client = cloudClient();
+    if (client && !String(document.id).startsWith('document-')) {
+      const { error } = await client.from('training_documents').delete().eq('id', document.id);
+      if (error) throw error;
+      const { error: storageError } = await client.storage.from(resourceBucket).remove([document.filePath]);
+      if (storageError) notify('Document removed. Its stored file could not be cleaned up.');
+    }
+    trainingDocuments = trainingDocuments.filter((item) => item.id !== document.id);
+    saveTrainingDocuments();
+    if (sessionDocumentPreviewId === document.id) closeSessionDocumentPreview();
+  } catch (error) {
+    if (activeSession === key) $('#sessionDocumentError').textContent = `Could not delete document: ${error.message}`;
+  } finally {
+    documentSaving = false;
+    renderSessionDocuments();
+  }
+});
+$('#sessionDocumentPreview').addEventListener('click', (event) => { if (event.target.closest('[data-close-session-document]')) closeSessionDocumentPreview(); });
 function sessionOutcome(assignment, attended, result, finish, completedDate) {
   if (!finish && !(assignment.status === 'Completed' && !attended)) return { ...assignment, attended };
   const resultStatus = attended ? result : 'Failed';
@@ -396,6 +551,7 @@ $('#trainingSessionForm').addEventListener('submit', async (event) => {
     renderEmployeeLearning();
     window.dispatchEvent(new Event('development-modules-refresh'));
     notify(finish ? 'Training completed. Absent employees marked Failed.' : 'Attendance saved.');
+    if (finish) switchView('tracker');
   } catch (error) {
     $('#sessionError').textContent = `Could not save training: ${error.message}`;
   } finally {
@@ -408,11 +564,19 @@ function renderTracker() {
   const employeeMap = new Map(employees().map((employee) => [employee.id, employee]));
   const resourceMap = new Map(resources.map((resource) => [resource.id, resource]));
   const quarterAssignments = assignments.filter((assignment) => assignmentQuarter(assignment) === selectedQuarter);
-  const completed = quarterAssignments.filter((assignment) => assignment.status === 'Completed').length;
-  const overdue = quarterAssignments.filter(assignmentIsOverdue).length;
-  const completionRate = quarterAssignments.length ? Math.round((completed / quarterAssignments.length) * 100) : 0;
+  const assignmentsByTraining = new Map();
+  quarterAssignments.forEach((assignment) => {
+    const trainingAssignments = assignmentsByTraining.get(assignment.resourceId) || [];
+    trainingAssignments.push(assignment);
+    assignmentsByTraining.set(assignment.resourceId, trainingAssignments);
+  });
+  const trainingGroups = [...assignmentsByTraining.values()];
+  const completed = trainingGroups.filter((group) => group.every((assignment) => assignment.status === 'Completed')).length;
+  const inProgress = trainingGroups.filter((group) => group.some((assignment) => assignment.status !== 'Assigned') && group.some((assignment) => assignment.status !== 'Completed')).length;
+  const overdue = trainingGroups.filter((group) => group.some(assignmentIsOverdue)).length;
+  const completionRate = trainingGroups.length ? Math.round((completed / trainingGroups.length) * 100) : 0;
   $('#trackerQuarterLabel').textContent = quarterLabel(selectedQuarter);
-  $('#trackerSummary').innerHTML = `<div class="summary-card"><span>Quarter assignments</span><strong>${quarterAssignments.length}</strong></div><div class="summary-card"><span>In progress</span><strong>${quarterAssignments.filter((assignment) => assignment.status === 'In progress').length}</strong></div><div class="summary-card"><span>Completed</span><strong>${completed}<small>/${quarterAssignments.length}</small></strong></div><div class="summary-card summary-alert"><span>Overdue</span><strong>${overdue}<small>${completionRate}% complete</small></strong></div>`;
+  $('#trackerSummary').innerHTML = `<div class="summary-card"><span>Quarter trainings</span><strong>${trainingGroups.length}</strong></div><div class="summary-card"><span>In progress</span><strong>${inProgress}</strong></div><div class="summary-card"><span>Completed</span><strong>${completed}<small>/${trainingGroups.length}</small></strong></div><div class="summary-card summary-alert"><span>Overdue</span><strong>${overdue}<small>${completionRate}% complete</small></strong></div>`;
   renderTrainingCalendar();
   const query = $('#trainingSearch').value.toLowerCase().trim();
   const statusFilter = $('#trainingStatusFilter').value;
@@ -503,13 +667,15 @@ $('#assignmentForm').addEventListener('submit', async (event) => {
 async function deleteAllLearningCenterData() {
   const client = cloudClient();
   if (!client) throw new Error('Sign in to Supabase before deleting all Learning Centre records.');
-  const [{ data: resourcesWithFiles, error: resourceLookupError }, { data: certificatesWithFiles, error: certificateLookupError }] = await Promise.all([
+  const [{ data: resourcesWithFiles, error: resourceLookupError }, { data: certificatesWithFiles, error: certificateLookupError }, { data: documentsWithFiles, error: documentLookupError }] = await Promise.all([
     client.from('development_resources').select('id, file_path'),
-    client.from('employee_certifications').select('id, file_path')
+    client.from('employee_certifications').select('id, file_path'),
+    client.from('training_documents').select('id, file_path')
   ]);
   if (resourceLookupError) throw resourceLookupError;
   if (certificateLookupError) throw certificateLookupError;
-  const resourcePaths = (resourcesWithFiles || []).map((resource) => resource.file_path).filter(Boolean);
+  if (documentLookupError) throw documentLookupError;
+  const resourcePaths = [...(resourcesWithFiles || []), ...(documentsWithFiles || [])].map((resource) => resource.file_path).filter(Boolean);
   const certificatePaths = (certificatesWithFiles || []).map((certificate) => certificate.file_path).filter(Boolean);
   if (resourcePaths.length) {
     const { error } = await client.storage.from(resourceBucket).remove(resourcePaths);
@@ -519,7 +685,7 @@ async function deleteAllLearningCenterData() {
     const { error } = await client.storage.from('development-certificates').remove(certificatePaths);
     if (error) throw error;
   }
-  for (const table of ['employee_certifications', 'development_plans', 'development_skills', 'training_assignments', 'development_resources']) {
+  for (const table of ['employee_certifications', 'development_plans', 'development_skills', 'training_assignments', 'training_documents', 'development_resources']) {
     const { data, error: lookupError } = await client.from(table).select('id');
     if (lookupError) throw lookupError;
     const ids = (data || []).map((record) => record.id);
@@ -530,6 +696,8 @@ async function deleteAllLearningCenterData() {
   }
   resources = [];
   assignments = [];
+  trainingDocuments = [];
+  saveTrainingDocuments();
   save();
   renderResources();
   renderAssignmentOptions();
@@ -561,6 +729,12 @@ async function deleteDevelopmentResources(resourceIds) {
   const cloudIds = [...ids].filter((id) => !String(id).startsWith('resource-'));
   const cloudResources = resources.filter((resource) => cloudIds.includes(resource.id));
   if (client && cloudIds.length) {
+    let documentPaths = [];
+    if (cloudResources.some((resource) => ['Courses', 'Trainings'].includes(resource.category))) {
+      const { data: documents, error: documentLookupError } = await client.from('training_documents').select('file_path').in('resource_id', cloudIds);
+      if (documentLookupError) throw documentLookupError;
+      documentPaths = (documents || []).map((document) => document.file_path).filter(Boolean);
+    }
     const { data: linkedAssignments, error: assignmentLookupError } = await client.from('training_assignments').select('id').in('resource_id', cloudIds);
     if (assignmentLookupError) throw assignmentLookupError;
     const assignmentIds = (linkedAssignments || []).map((assignment) => assignment.id);
@@ -570,7 +744,7 @@ async function deleteDevelopmentResources(resourceIds) {
     }
     const { error } = await client.from('development_resources').delete().in('id', cloudIds);
     if (error) throw error;
-    const filePaths = cloudResources.map((resource) => resource.filePath).filter(Boolean);
+    const filePaths = [...cloudResources.map((resource) => resource.filePath).filter(Boolean), ...documentPaths];
     if (filePaths.length) {
       const { error: storageError } = await client.storage.from(resourceBucket).remove(filePaths);
       if (storageError) console.error('Resource file cleanup failed:', storageError);
@@ -578,6 +752,8 @@ async function deleteDevelopmentResources(resourceIds) {
   }
   resources = resources.filter((resource) => !ids.has(resource.id));
   assignments = assignments.filter((assignment) => !ids.has(assignment.resourceId));
+  trainingDocuments = trainingDocuments.filter((document) => !ids.has(document.resourceId));
+  saveTrainingDocuments();
   save();
   renderResources();
   renderAssignmentOptions();

@@ -112,8 +112,15 @@
 
     <section class="view" id="trainingSessionView">
       <div class="view-heading"><div><span class="eyebrow">Booked training</span><h2 id="sessionTitle"></h2></div><button class="secondary-button" type="button" id="backToTracker">Back to calendar</button></div>
-      <div class="session-details"><div><span>Course</span><div id="sessionCourse"></div></div><div><span>Date</span><strong id="sessionDate"></strong></div><div><span>Time</span><strong id="sessionTime"></strong></div></div>
+      <div class="session-details"><div><span>Course</span><div id="sessionCourse"></div></div><div><span>Date</span><strong id="sessionDate"></strong></div><div><span>Time</span><strong id="sessionTime"></strong></div><div><span>Status</span><strong id="sessionStatus"></strong></div></div>
       <form id="trainingSessionForm"><div class="tracker-table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>Attended</th><th>Result</th></tr></thead><tbody id="sessionRoster"></tbody></table></div><p id="sessionError" role="alert"></p><div class="form-actions"><button class="secondary-button" type="submit" value="attendance">Save attendance</button><button class="primary-button" type="submit" value="finish">Finish training</button></div></form>
+      <section class="session-documents" aria-labelledby="sessionDocumentsHeading">
+        <div class="view-heading"><div><span class="eyebrow">Course materials</span><h3 id="sessionDocumentsHeading">Training documents</h3></div></div>
+        <div id="sessionDocumentList" aria-live="polite"></div>
+        <form id="sessionDocumentForm" class="session-document-upload"><label>Document title<input id="sessionDocumentTitle" maxlength="180" /></label><label>Document<input id="sessionDocumentFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" required /></label><button class="primary-button" type="submit">Upload document</button></form>
+        <p id="sessionDocumentError" role="alert"></p>
+        <div id="sessionDocumentPreview" class="resource-preview" hidden></div>
+      </section>
     </section>
 
     <section class="view" id="modulesView">
