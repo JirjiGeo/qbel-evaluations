@@ -235,6 +235,7 @@ body .development-app :is(.resource-card, .resource-preview, .tracker-table-wrap
   box-shadow: none;
 }
 body #employeesOverview .employee-card { border-color: #013220; }
+body #scoreHistoryModal .employee-profile-panel :is(.score-history-row, .profile-record, .asset-detail, .development-record, .asset-form-grid, .profile-document-preview) { border-color: #013220; }
 body .main-content :is(.employee-card, .stat-card):hover,
 body .development-app .resource-card:hover { transform: none; box-shadow: none; }
 body .main-content .employee-grid { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
