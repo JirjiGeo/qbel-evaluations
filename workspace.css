@@ -178,6 +178,21 @@ body .development-app #dashboardView .dashboard-kpi:nth-child(n) {
 body .development-app #dashboardView :is(.dashboard-kpi, .dashboard-panel, .dashboard-empty, .atlas-signals > div, .impact-levels > div, #skillGapSummary .learning-item) {
   border: 1px solid #013220;
 }
+body .development-app #dashboardView .dashboard-panel {
+  padding: 20px;
+  border-radius: 8px;
+  background: #fff;
+}
+body .development-app #dashboardView #skillGapSummary {
+  display: grid;
+  gap: 8px;
+}
+body .development-app #dashboardView #skillGapSummary .learning-item {
+  gap: 4px;
+  padding: 12px;
+  border-radius: 6px;
+  background: #fff;
+}
 body .development-app :is(#dashboardView, #trackerView, #learningView) :is(.dashboard-kpi span, .dashboard-kpi small, .summary-card span, .learning-kpi-top > span:first-child) {
   color: var(--workspace-muted);
   font-size: 11px;
