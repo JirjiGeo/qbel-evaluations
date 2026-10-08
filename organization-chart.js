@@ -106,6 +106,7 @@ const organizationNodeName = document.querySelector('#organizationNodeName');
 const organizationNodeDesignation = document.querySelector('#organizationNodeDesignation');
 const organizationNodeParent = document.querySelector('#organizationNodeParent');
 const organizationNodeType = document.querySelector('#organizationNodeType');
+let organizationChartPrintState = null;
 
 function escapeOrganizationText(value) {
   return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -209,13 +210,13 @@ function openOrganizationNodeEditor(node = null, parentId = '') {
   organizationNodeDesignation.value = node?.designation || '';
   organizationNodeType.value = node?.type || 'person';
   document.querySelector('#organizationNodeModalTitle').textContent = node ? 'Edit position' : 'Add position';
-  organizationNodeModal.classList.add('active');
+  organizationNodeModal.classList.add('open');
   organizationNodeModal.setAttribute('aria-hidden', 'false');
   organizationNodeName.focus();
 }
 
 function closeOrganizationNodeEditor() {
-  organizationNodeModal.classList.remove('active');
+  organizationNodeModal.classList.remove('open');
   organizationNodeModal.setAttribute('aria-hidden', 'true');
   organizationNodeForm.reset();
   editingOrganizationNodeId = null;
@@ -256,6 +257,21 @@ organizationChartZoom.addEventListener('input', () => updateOrganizationChartZoo
 document.querySelector('#organizationChartZoomOut').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) - 5));
 document.querySelector('#organizationChartZoomIn').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) + 5));
 document.querySelector('#organizationChartZoomReset').addEventListener('click', () => updateOrganizationChartZoom(75));
+document.querySelector('#printOrganizationChartButton').addEventListener('click', () => {
+  if (organizationChartPrintState) return;
+  const collapsedDetails = [...organizationChartTree.querySelectorAll('details:not([open])')];
+  organizationChartPrintState = { collapsedDetails, zoom: organizationChartTree.style.zoom };
+  collapsedDetails.forEach((details) => { details.open = true; });
+  document.body.classList.add('organization-chart-print-mode');
+  window.requestAnimationFrame(() => window.print());
+});
+window.addEventListener('afterprint', () => {
+  if (!organizationChartPrintState) return;
+  organizationChartPrintState.collapsedDetails.forEach((details) => { details.open = false; });
+  organizationChartTree.style.zoom = organizationChartPrintState.zoom;
+  organizationChartPrintState = null;
+  document.body.classList.remove('organization-chart-print-mode');
+});
 document.querySelector('#closeOrganizationNodeModal').addEventListener('click', closeOrganizationNodeEditor);
 document.querySelector('#cancelOrganizationNodeModal').addEventListener('click', closeOrganizationNodeEditor);
 organizationNodeModal.addEventListener('click', (event) => {

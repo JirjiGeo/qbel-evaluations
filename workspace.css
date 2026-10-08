@@ -228,6 +228,43 @@ body .organization-node-modal .organization-node-fields { grid-template-columns:
   body .organization-chart-zoom input { width: 54px; }
 }
 
+@page {
+  size: A3 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  body.organization-chart-print-mode { background: #fff; }
+  body.organization-chart-print-mode #employeesShell { display: block !important; min-height: 0; background: #fff; }
+  body.organization-chart-print-mode #employeesShell > .sidebar { display: none !important; }
+  body.organization-chart-print-mode #employeesOverview { display: block; min-height: 0; padding: 0 !important; overflow: visible; background: #fff; }
+  body.organization-chart-print-mode #employeesOverview > :not(#organizationChartSection) { display: none !important; }
+  body.organization-chart-print-mode #organizationChartSection { display: block !important; padding: 0; border: 0; visibility: visible !important; }
+  body.organization-chart-print-mode #organizationChartSection * { visibility: visible !important; }
+  body.organization-chart-print-mode #organizationChartSection .heading-actions { display: none !important; }
+  body.organization-chart-print-mode #organizationChartSection .section-heading { margin: 0 0 10px; }
+  body.organization-chart-print-mode #organizationChartSection .section-heading h2 { margin: 0; font-size: 22px; }
+  body.organization-chart-print-mode #organizationChartSection .section-description { margin: 3px 0; }
+  body.organization-chart-print-mode .organization-chart-tree { max-width: none; overflow: visible !important; padding: 12px 0; border: 0; border-radius: 0; background: #fff; zoom: 100% !important; }
+  body.organization-chart-print-mode .organization-tree,
+  body.organization-chart-print-mode .organization-tree-children { display: block; min-width: 0; margin: 0; padding: 0; }
+  body.organization-chart-print-mode .organization-tree-children { margin-left: 12px; padding-left: 12px; border-left: 1px solid #b5c9bf; }
+  body.organization-chart-print-mode .organization-chart-branch { display: block; width: auto; padding: 5px 0 0 10px; text-align: left; break-inside: auto; }
+  body.organization-chart-print-mode .organization-chart-branch::before,
+  body.organization-chart-print-mode .organization-chart-branch::after,
+  body.organization-chart-print-mode .organization-chart-branch > details::before { display: none !important; }
+  body.organization-chart-print-mode .organization-node { width: 100% !important; min-height: 0; padding: 6px 8px; border-top-width: 1px; border-left-width: 3px; border-radius: 3px; box-shadow: none; break-inside: avoid; }
+  body.organization-chart-print-mode .organization-node-identity { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 12px; }
+  body.organization-chart-print-mode .organization-node-identity strong { font-size: 10px; }
+  body.organization-chart-print-mode .organization-node-identity small { font-size: 9px; }
+  body.organization-chart-print-mode .organization-tree > .organization-chart-branch > .organization-node { width: 100% !important; }
+  body.organization-chart-print-mode #organizationChartSection details > summary { display: none !important; }
+  body.organization-chart-print-mode #organizationChartSection details > .organization-tree-children { display: block !important; }
+  body.organization-chart-print-mode .organization-node-actions,
+  body.organization-chart-print-mode .organization-children-toggle { display: none !important; }
+  body.organization-chart-print-mode * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
 body .main-content :is(.stat-card, .quarter-summary > div, .report-metrics > div),
 body .development-app :is(#dashboardView, #trackerView, #learningView) :is(.dashboard-kpi, .summary-card, .learning-kpi) {
   min-width: 0;
