@@ -79,6 +79,12 @@ async function loadResourceFile(resource) {
   resource.dataUrl = data.file_data;
   return resource;
 }
+function isTableMissingError(error) {
+  return Boolean(error && (error.code === '42P01' || /Could not find (?:the )?table .*training_documents|training_documents.*does not exist/i.test(error.message || '')));
+}
+function isMissingAttendanceColumnError(error) {
+  return Boolean(error && /(?:Could not find the )?'attended' column of 'training_assignments'|column ["']?attended["']? .*does not exist/i.test(error.message || ''));
+}
 function notify(message) { const toast = $('#devToast'); toast.textContent = message; toast.classList.add('show'); window.setTimeout(() => toast.classList.remove('show'), 2400); }
 function renderEmployeeLearning() {
   const activeEmployees = employees();
@@ -390,7 +396,11 @@ async function loadSessionDocuments(resourceId, key) {
     trainingDocuments = [...trainingDocuments.filter((document) => document.resourceId !== resourceId), ...(data || []).map((document) => ({ id: document.id, resourceId: document.resource_id, title: document.title, fileName: document.file_name, fileType: document.file_type, filePath: document.file_path, createdAt: document.created_at }))];
     saveTrainingDocuments();
   } catch (error) {
-    if (activeSession === key && version === documentLoadVersion) $('#sessionDocumentError').textContent = `Could not load documents: ${error.message}. Ensure scripts/training-documents.sql has been applied in Supabase.`;
+    if (isTableMissingError(error) && activeSession === key && version === documentLoadVersion) {
+      $('#sessionDocumentError').textContent = 'Training documents are not enabled in this environment yet.';
+    } else if (activeSession === key && version === documentLoadVersion) {
+      $('#sessionDocumentError').textContent = `Could not load documents: ${error.message}. Ensure scripts/training-documents.sql has been applied in Supabase.`;
+    }
   } finally {
     if (version === documentLoadVersion) {
       documentsLoading = false;
@@ -444,19 +454,29 @@ $('#sessionDocumentForm').addEventListener('submit', async (event) => {
   renderSessionDocuments();
   try {
     const client = cloudClient();
+    let cloudTableMissing = false;
     if (client) {
       if (String(session.resourceId).startsWith('resource-')) throw new Error('Reload the cloud training before uploading documents.');
       document.filePath = `training-documents/${crypto.randomUUID()}/${file.name.replace(/[\\/]/g, '_')}`;
       const { error: uploadError } = await client.storage.from(resourceBucket).upload(document.filePath, file, { contentType: file.type || 'application/octet-stream' });
       if (uploadError) throw uploadError;
       const { data, error } = await client.from('training_documents').insert({ resource_id: document.resourceId, title: document.title, file_name: document.fileName, file_type: document.fileType, file_path: document.filePath }).select().single();
-      if (error) { await client.storage.from(resourceBucket).remove([document.filePath]); throw error; }
-      document.id = data.id;
+      if (error) {
+        if (isTableMissingError(error)) {
+          cloudTableMissing = true;
+          document.id = `document-${crypto.randomUUID()}`;
+        } else {
+          await client.storage.from(resourceBucket).remove([document.filePath]);
+          throw error;
+        }
+      } else {
+        document.id = data.id;
+      }
     } else document.dataUrl = await readFile(file);
     trainingDocuments.push(document);
     saveTrainingDocuments();
     if (activeSession === key) $('#sessionDocumentForm').reset();
-    notify('Training document uploaded.');
+    notify(cloudTableMissing ? 'Training document saved locally.' : 'Training document uploaded.');
   } catch (error) {
     if (activeSession === key) $('#sessionDocumentError').textContent = `Could not upload document: ${error.message}`;
   } finally {
@@ -494,9 +514,11 @@ $('#sessionDocumentList').addEventListener('click', async (event) => {
     const client = cloudClient();
     if (client && !String(document.id).startsWith('document-')) {
       const { error } = await client.from('training_documents').delete().eq('id', document.id);
+      if (error && !isTableMissingError(error)) throw error;
+    }
+    if (client && document.filePath) {
+      const { error } = await client.storage.from(resourceBucket).remove([document.filePath]);
       if (error) throw error;
-      const { error: storageError } = await client.storage.from(resourceBucket).remove([document.filePath]);
-      if (storageError) notify('Document removed. Its stored file could not be cleaned up.');
     }
     trainingDocuments = trainingDocuments.filter((item) => item.id !== document.id);
     saveTrainingDocuments();
@@ -560,7 +582,9 @@ $('#trainingSessionForm').addEventListener('submit', async (event) => {
     notify(finish ? 'Training completed. Absent employees marked Failed.' : 'Attendance saved.');
     if (finish) switchView('tracker');
   } catch (error) {
-    $('#sessionError').textContent = `Could not save training: ${error.message}`;
+    $('#sessionError').textContent = isMissingAttendanceColumnError(error)
+      ? 'Supabase is missing the attendance field. Run scripts/training-attendance.sql in the Supabase SQL Editor, then reload this page.'
+      : `Could not save training: ${error.message}`;
   } finally {
     sessionSaving = false;
     $('#trainingSessionForm').querySelectorAll('button,input,select').forEach((control) => { control.disabled = false; });
@@ -603,8 +627,8 @@ function renderTracker() {
     const resultStatus = assignment.resultStatus || 'Pending';
     const resultDisabled = assignment.status !== 'Completed' || assignment.resultSource === 'assessment' || assignment.attended === false;
     const resultTitle = assignment.attended === false ? 'Absent employees automatically fail.' : assignment.resultSource === 'assessment' ? 'Set by latest assessment score.' : 'Set after training is completed.';
-    return `<tr class="${overdueClass}"><td><strong>${escapeHtml(employee.name)}</strong></td><td>${escapeHtml(employee.department)}</td><td><strong>${escapeHtml(resource.title)}</strong><small class="resource-type">${escapeHtml(resource.category)}</small></td><td>${escapeHtml(assignment.assignedDate)}</td><td>${escapeHtml(assignment.dueDate || 'No due date')}</td><td><select class="status status-${statusClass}" data-status-assignment="${assignment.id}"><option ${assignment.status === 'Assigned' ? 'selected' : ''}>Assigned</option><option ${assignment.status === 'In progress' ? 'selected' : ''}>In progress</option><option ${assignment.status === 'Completed' ? 'selected' : ''}>Completed</option></select>${assignmentIsOverdue(assignment) ? '<small class="overdue-label">Overdue</small>' : ''}</td><td><select class="status result-${resultStatus.toLowerCase()}" data-result-assignment="${assignment.id}" title="${resultTitle}" ${resultDisabled ? 'disabled' : ''}><option value="Pending" ${resultStatus === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${resultStatus === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${resultStatus === 'Failed' ? 'selected' : ''}>Failed</option></select></td><td>${escapeHtml(assignment.trainingValidUntil || 'Not issued')}</td><td><button class="row-action" data-delete-assignment="${assignment.id}" type="button">Delete</button></td></tr>`;
-  }).join('') : '<tr><td colspan="9" class="empty-state">No matching assignments for this quarter.</td></tr>';
+    return `<tr class="${overdueClass}"><td><strong>${escapeHtml(employee.name)}</strong></td><td>${escapeHtml(employee.department)}</td><td><strong>${escapeHtml(resource.title)}</strong><small class="resource-type">${escapeHtml(resource.category)}</small></td><td>${escapeHtml(assignment.dueDate || 'No due date')}</td><td><select class="status status-${statusClass}" data-status-assignment="${assignment.id}"><option ${assignment.status === 'Assigned' ? 'selected' : ''}>Assigned</option><option ${assignment.status === 'In progress' ? 'selected' : ''}>In progress</option><option ${assignment.status === 'Completed' ? 'selected' : ''}>Completed</option></select>${assignmentIsOverdue(assignment) ? '<small class="overdue-label">Overdue</small>' : ''}</td><td><select class="status result-${resultStatus.toLowerCase()}" data-result-assignment="${assignment.id}" title="${resultTitle}" ${resultDisabled ? 'disabled' : ''}><option value="Pending" ${resultStatus === 'Pending' ? 'selected' : ''}>Pending</option><option value="Passed" ${resultStatus === 'Passed' ? 'selected' : ''}>Passed</option><option value="Failed" ${resultStatus === 'Failed' ? 'selected' : ''}>Failed</option></select></td><td>${escapeHtml(assignment.trainingValidUntil || 'Not issued')}</td><td><button class="row-action" data-delete-assignment="${assignment.id}" type="button">Delete</button></td></tr>`;
+  }).join('') : '<tr><td colspan="8" class="empty-state">No matching assignments for this quarter.</td></tr>';
 }
 function learningResourceTitle(resource) {
   return resource
@@ -739,7 +763,7 @@ async function deleteDevelopmentResources(resourceIds) {
     let documentPaths = [];
     if (cloudResources.some((resource) => ['Courses', 'Trainings'].includes(resource.category))) {
       const { data: documents, error: documentLookupError } = await client.from('training_documents').select('file_path').in('resource_id', cloudIds);
-      if (documentLookupError) throw documentLookupError;
+      if (documentLookupError && !isTableMissingError(documentLookupError)) throw documentLookupError;
       documentPaths = (documents || []).map((document) => document.file_path).filter(Boolean);
     }
     const { data: linkedAssignments, error: assignmentLookupError } = await client.from('training_assignments').select('id').in('resource_id', cloudIds);
