@@ -146,9 +146,21 @@
           <div class="pulse-newfaces-list" id="newFacesList"></div>
         </article>
       </section>
-      <section class="workspace-section" id="employees">
+      <div class="employee-section-tabs" role="tablist" aria-label="Employee views">
+        <button class="employee-section-tab active" id="directoryTab" type="button" role="tab" aria-selected="true" aria-controls="employees">Directory</button>
+        <button class="employee-section-tab" id="organizationChartTab" type="button" role="tab" aria-selected="false" aria-controls="organizationChartSection">Organization chart</button>
+      </div>
+      <section class="workspace-section employee-tab-panel" id="employees" role="tabpanel" aria-labelledby="directoryTab" data-employee-panel="directory">
         <div class="section-heading"><div><span class="section-kicker">People directory</span><h2>Employees</h2></div><div class="heading-actions"><div class="search-box"><span>Search</span><input id="employeeSearchInput" type="search" placeholder="Search employees" /></div><select id="employeeDepartmentFilter" aria-label="Filter by department"><option value="all">All departments</option></select><button class="outline-button" id="importEmployeesButton">Import CSV</button><input id="employeeCsvInput" type="file" accept=".csv,text/csv" hidden /><button class="outline-button" type="button" id="exportEmployeesExcelButton">Export Excel</button><button class="primary-button" id="addEmployeeButton"><span>+</span> Add employee</button></div></div>
         <div class="employee-grid" id="employeeRows"></div>
+      </section>
+      <section class="workspace-section employee-tab-panel organization-chart-panel" id="organizationChartSection" role="tabpanel" aria-labelledby="organizationChartTab" data-employee-panel="organization-chart" hidden>
+        <div class="section-heading">
+          <div><span class="section-kicker">Reporting structure</span><h2>Organization chart</h2><p class="section-description">Manage positions, reporting lines, names, and designations.</p></div>
+          <div class="heading-actions"><span class="organization-chart-count" id="organizationChartCount"></span><div class="organization-chart-zoom" role="group" aria-label="Chart zoom"><button type="button" id="organizationChartZoomOut" aria-label="Zoom out" title="Zoom out">-</button><input id="organizationChartZoom" type="range" min="50" max="125" step="5" value="75" aria-label="Chart zoom" /><button type="button" id="organizationChartZoomIn" aria-label="Zoom in" title="Zoom in">+</button><button type="button" id="organizationChartZoomReset">Reset</button></div><button class="outline-button" type="button" id="printOrganizationChartButton">Print / Save PDF</button><button class="primary-button" type="button" id="addOrganizationPositionButton"><span>+</span> Add position</button></div>
+        </div>
+        <div class="organization-chart-key" aria-label="Chart key"><span><i class="key-leadership"></i>Leadership</span><span><i class="key-team"></i>Teams and departments</span><span><i class="key-person"></i>Positions</span></div>
+        <div class="organization-chart-tree" id="organizationChartTree" aria-live="polite"></div>
       </section>
     </main>
   </div>
@@ -292,6 +304,22 @@
     </section>
   </div>
 
+  <div class="modal-backdrop" id="organizationNodeModal" aria-hidden="true">
+    <section class="evaluation-modal organization-node-modal" role="dialog" aria-modal="true" aria-labelledby="organizationNodeModalTitle">
+      <button class="close-button" id="closeOrganizationNodeModal" type="button" aria-label="Close position form">×</button>
+      <div class="modal-header"><div><span class="section-kicker">Organization chart</span><h2 id="organizationNodeModalTitle">Add position</h2><p>Set the position details and reporting line.</p></div></div>
+      <form id="organizationNodeForm">
+        <div class="form-row organization-node-fields">
+          <label>Name<input id="organizationNodeName" type="text" required maxlength="120" /></label>
+          <label>Designation<input id="organizationNodeDesignation" type="text" maxlength="160" placeholder="Designation or role" /></label>
+          <label>Reports to<select id="organizationNodeParent"></select></label>
+          <label>Position type<select id="organizationNodeType"><option value="person">Person</option><option value="group">Department or team</option></select></label>
+        </div>
+        <div class="modal-footer"><button class="outline-button" type="button" id="cancelOrganizationNodeModal">Cancel</button><button class="primary-button" type="submit">Save position</button></div>
+      </form>
+    </section>
+  </div>
+
   <div class="modal-backdrop" id="evaluationModal" aria-hidden="true">
     <section class="evaluation-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <button class="close-button" id="closeModal" aria-label="Close evaluation">×</button>
@@ -311,5 +339,6 @@
   <script src="auth.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
+  <script src="organization-chart.js"></script>
 </body>
 </html>

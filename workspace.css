@@ -193,6 +193,7 @@ body .organization-tree-children { display: flex; align-items: flex-start; justi
 body .organization-tree > li { padding: 0; }
 body .organization-tree-children { margin: 0; }
 body .organization-tree-children.organization-tree-children-vertical { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: min(100%, 460px); min-width: 0; margin: 12px auto 0; padding: 12px 0 0; border-top: 1px solid #b5c9bf; }
+body .organization-tree-children.organization-engineering-crew { width: min(100%, 760px); }
 body .organization-tree-children-vertical > .organization-chart-branch { width: 100%; padding: 0; text-align: left; }
 body .organization-tree-children-vertical > .organization-chart-branch::before,
 body .organization-tree-children-vertical > .organization-chart-branch::after { display: none; }
@@ -250,8 +251,8 @@ body .organization-node-modal .organization-node-fields { grid-template-columns:
 }
 
 @page {
-  size: A3 landscape;
-  margin: 10mm;
+  size: A3 portrait;
+  margin: 12mm;
 }
 
 @media print {
@@ -266,20 +267,21 @@ body .organization-node-modal .organization-node-fields { grid-template-columns:
   body.organization-chart-print-mode #organizationChartSection .section-heading { margin: 0 0 10px; }
   body.organization-chart-print-mode #organizationChartSection .section-heading h2 { margin: 0; font-size: 22px; }
   body.organization-chart-print-mode #organizationChartSection .section-description { margin: 3px 0; }
-  body.organization-chart-print-mode .organization-chart-tree { max-width: none; overflow: visible !important; padding: 12px 0; border: 0; border-radius: 0; background: #fff; zoom: 100% !important; }
-  body.organization-chart-print-mode .organization-tree,
-  body.organization-chart-print-mode .organization-tree-children { display: block; min-width: 0; margin: 0; padding: 0; }
-  body.organization-chart-print-mode .organization-tree { zoom: 100% !important; }
-  body.organization-chart-print-mode .organization-tree-children { margin-left: 12px; padding-left: 12px; border-left: 1px solid #b5c9bf; }
-  body.organization-chart-print-mode .organization-chart-branch { display: block; width: auto; padding: 5px 0 0 10px; text-align: left; break-inside: auto; }
-  body.organization-chart-print-mode .organization-chart-branch::before,
-  body.organization-chart-print-mode .organization-chart-branch::after,
-  body.organization-chart-print-mode .organization-chart-branch > details::before { display: none !important; }
-  body.organization-chart-print-mode .organization-node { width: 100% !important; min-height: 0; padding: 6px 8px; border-top-width: 1px; border-left-width: 3px; border-radius: 3px; box-shadow: none; break-inside: avoid; }
+  body.organization-chart-print-mode .organization-chart-tree { display: block; flex: none; width: auto; max-width: none; height: auto !important; overflow: visible !important; padding: 12px 0; border: 0; border-radius: 0; background: #fff; }
+  body.organization-chart-print-mode .organization-tree { display: block; min-width: 0; margin: 0; padding: 0; list-style: none; zoom: 100% !important; }
+  body.organization-chart-print-mode .organization-tree-children { display: block; min-width: 0; margin: 8px 0 0 14px; padding: 0 0 0 14px; border-left: 1px solid #9aafa3; list-style: none; }
+  body.organization-chart-print-mode .organization-tree-children.organization-tree-children-vertical { width: auto; margin: 8px 0 0 14px; padding: 0 0 0 14px; border-top: 0; }
+  body.organization-chart-print-mode .organization-chart-branch { position: relative; display: block; width: auto; padding: 0 0 7px 14px; text-align: left; break-inside: auto; }
+  body.organization-chart-print-mode .organization-chart-branch::before { position: absolute; top: 22px; left: 0; width: 14px; border-top: 1px solid #9aafa3; content: ''; }
+  body.organization-chart-print-mode .organization-tree > .organization-chart-branch::before { display: none; }
+  body.organization-chart-print-mode .organization-chart-branch::after { display: none; }
+  body.organization-chart-print-mode .organization-chart-branch > details { position: relative; }
+  body.organization-chart-print-mode .organization-chart-branch > details::before { position: absolute; top: 0; left: 0; height: 8px; border-left: 1px solid #9aafa3; content: ''; }
+  body.organization-chart-print-mode .organization-node { grid-template-columns: 24px minmax(0, 1fr); width: auto !important; min-width: 0; min-height: 0; padding: 6px 8px; border-radius: 4px; box-shadow: none; break-inside: avoid; }
+  body.organization-chart-print-mode .organization-node-mark { width: 22px; height: 22px; }
   body.organization-chart-print-mode .organization-node-identity { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 12px; }
   body.organization-chart-print-mode .organization-node-identity strong { font-size: 10px; }
   body.organization-chart-print-mode .organization-node-identity small { font-size: 9px; }
-  body.organization-chart-print-mode .organization-tree > .organization-chart-branch > .organization-node { width: 100% !important; }
   body.organization-chart-print-mode #organizationChartSection details > summary { display: none !important; }
   body.organization-chart-print-mode #organizationChartSection details > .organization-tree-children { display: block !important; }
   body.organization-chart-print-mode .organization-node-actions,
