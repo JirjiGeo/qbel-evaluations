@@ -26,7 +26,7 @@ const defaultOrganizationChart = [
   organizationNode('shartan-balai', 'operations-support', 'Shartan Balai', 'Operations Executive'),
   organizationNode('engineering-department', 'andrew-mansour', 'Engineering & Technical Department', '', 'group'),
   organizationNode('azlan-engineering', 'engineering-department', 'Azlan Ahmed', 'Head of Engineering & Technical'),
-  organizationNode('site-teams', 'engineering-department', 'Site Teams', '', 'group'),
+  organizationNode('site-teams', 'azlan-engineering', 'Site Teams', '', 'group'),
   organizationNode('karashath-justin', 'site-teams', 'Karashath Justin', 'Facility Engineering Site Team Leader'),
   organizationNode('robil-beepary', 'karashath-justin', 'Robil Beepary', ''),
   organizationNode('jobby-georges', 'karashath-justin', 'Jobby Georges', ''),
@@ -74,10 +74,22 @@ const defaultOrganizationChart = [
   organizationNode('ajith-ashokan', 'ella-mansour', 'Ajith Ashokan', 'ELV Coordinator')
 ];
 
+function moveSiteTeamsUnderAzlan(chart) {
+  const siteTeams = chart.find((node) => node.id === 'site-teams');
+  const azlan = chart.find((node) => node.id === 'azlan-engineering');
+  if (!siteTeams || !azlan || siteTeams.parentId !== 'engineering-department') return false;
+  siteTeams.parentId = azlan.id;
+  return true;
+}
+
 function readOrganizationChart() {
   try {
     const saved = JSON.parse(localStorage.getItem(organizationChartKey) || 'null');
-    return Array.isArray(saved) ? saved : defaultOrganizationChart.map((node) => ({ ...node }));
+    if (Array.isArray(saved)) {
+      if (moveSiteTeamsUnderAzlan(saved)) localStorage.setItem(organizationChartKey, JSON.stringify(saved));
+      return saved;
+    }
+    return defaultOrganizationChart.map((node) => ({ ...node }));
   } catch (error) {
     return defaultOrganizationChart.map((node) => ({ ...node }));
   }
@@ -119,7 +131,7 @@ function renderOrganizationNode(node, ancestors) {
         <button type="button" class="organization-remove" data-org-action="remove" data-node-id="${escapeOrganizationText(node.id)}">Remove</button>
       </div>
     </article>
-    ${children.length ? `<details open><summary class="organization-children-toggle">${children.length} direct report${children.length === 1 ? '' : 's'}</summary><ul class="organization-tree-children">${children.map((child) => renderOrganizationNode(child, nextAncestors)).join('')}</ul></details>` : ''}
+    ${children.length ? `<details${ancestors.size === 0 ? ' open' : ''}><summary class="organization-children-toggle">${children.length} direct report${children.length === 1 ? '' : 's'}</summary><ul class="organization-tree-children">${children.map((child) => renderOrganizationNode(child, nextAncestors)).join('')}</ul></details>` : ''}
   </li>`;
 }
 
@@ -131,6 +143,15 @@ function renderOrganizationChart() {
   const people = organizationChart.filter((node) => node.type !== 'group').length;
   const groups = organizationChart.length - people;
   organizationChartCount.textContent = `${people} people · ${groups} teams and departments`;
+}
+
+function centerOrganizationChartRoot() {
+  const rootCard = organizationChartTree.querySelector('.organization-tree > .organization-chart-branch > .organization-node');
+  if (!rootCard) return;
+  const canvasBounds = organizationChartTree.getBoundingClientRect();
+  const rootBounds = rootCard.getBoundingClientRect();
+  const targetScroll = organizationChartTree.scrollLeft + rootBounds.left + rootBounds.width / 2 - (canvasBounds.left + organizationChartTree.clientWidth / 2);
+  organizationChartTree.scrollLeft = Math.max(0, Math.min(organizationChartTree.scrollWidth - organizationChartTree.clientWidth, targetScroll));
 }
 
 function persistOrganizationChart() {
@@ -218,7 +239,10 @@ function selectEmployeeSection(section) {
     tab.classList.toggle('active', selected);
     tab.setAttribute('aria-selected', String(selected));
   });
-  if (section === 'organization-chart') renderOrganizationChart();
+  if (section === 'organization-chart') {
+    renderOrganizationChart();
+    window.requestAnimationFrame(centerOrganizationChartRoot);
+  }
 }
 
 document.querySelector('#addOrganizationPositionButton').addEventListener('click', () => openOrganizationNodeEditor());
@@ -231,7 +255,7 @@ function updateOrganizationChartZoom(value) {
 organizationChartZoom.addEventListener('input', () => updateOrganizationChartZoom(organizationChartZoom.value));
 document.querySelector('#organizationChartZoomOut').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) - 5));
 document.querySelector('#organizationChartZoomIn').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) + 5));
-document.querySelector('#organizationChartZoomReset').addEventListener('click', () => updateOrganizationChartZoom(100));
+document.querySelector('#organizationChartZoomReset').addEventListener('click', () => updateOrganizationChartZoom(75));
 document.querySelector('#closeOrganizationNodeModal').addEventListener('click', closeOrganizationNodeEditor);
 document.querySelector('#cancelOrganizationNodeModal').addEventListener('click', closeOrganizationNodeEditor);
 organizationNodeModal.addEventListener('click', (event) => {
@@ -289,11 +313,17 @@ async function loadOrganizationChartFromCloud() {
   }
   if (Array.isArray(data?.chart)) {
     organizationChart = data.chart;
+    const migrated = moveSiteTeamsUnderAzlan(organizationChart);
     persistOrganizationChart();
+    if (migrated) await syncOrganizationChart().catch((syncError) => console.warn('Could not save the updated Site Teams reporting line.', syncError));
     return;
   }
   await syncOrganizationChart().catch((syncError) => console.warn('Could not initialize the shared organization chart.', syncError));
 }
 
 window.addEventListener('qbel-auth-ready', () => { void loadOrganizationChartFromCloud(); });
+window.addEventListener('resize', () => {
+  if (!document.querySelector('#organizationChartSection').hidden) centerOrganizationChartRoot();
+});
+updateOrganizationChartZoom(75);
 renderOrganizationChart();
