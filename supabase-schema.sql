@@ -34,8 +34,25 @@ create table if not exists public.evaluations (
 create index if not exists evaluations_employee_id_idx on public.evaluations(employee_id);
 create index if not exists evaluations_date_idx on public.evaluations(evaluation_date desc);
 
+create table if not exists public.organization_chart (
+  id text primary key check (id = 'company'),
+  chart jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 alter table public.employees enable row level security;
 alter table public.evaluations enable row level security;
+alter table public.organization_chart enable row level security;
+
+drop policy if exists "Authenticated users can read organization chart" on public.organization_chart;
+create policy "Authenticated users can read organization chart"
+  on public.organization_chart for select to authenticated using (true);
+drop policy if exists "Authenticated users can insert organization chart" on public.organization_chart;
+create policy "Authenticated users can insert organization chart"
+  on public.organization_chart for insert to authenticated with check (true);
+drop policy if exists "Authenticated users can update organization chart" on public.organization_chart;
+create policy "Authenticated users can update organization chart"
+  on public.organization_chart for update to authenticated using (true) with check (true);
 
 drop policy if exists "Authenticated users can read employees" on public.employees;
 drop policy if exists "Authenticated users can insert employees" on public.employees;

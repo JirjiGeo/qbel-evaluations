@@ -3,7 +3,7 @@ const path = require('path');
 
 const projectRoot = path.join(__dirname, '..');
 const outputDirectory = path.join(projectRoot, 'dist');
-const staticFiles = ['index.html', 'app.js', 'auth.js', 'styles.css', 'workspace.css', 'logo.png', 'logo.svg', 'supabase-config.js'];
+const staticFiles = ['index.html', 'app.js', 'organization-chart.js', 'auth.js', 'styles.css', 'workspace.css', 'logo.png', 'logo.svg', 'supabase-config.js'];
 
 fs.rmSync(outputDirectory, { recursive: true, force: true });
 fs.mkdirSync(outputDirectory, { recursive: true });

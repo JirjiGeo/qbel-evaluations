@@ -1766,7 +1766,7 @@ async function refreshReportData() {
   if (window.supabaseClient) {
     const [assetResult, assignmentResult, resourceResult, skillResult, planResult, certificationResult] = await Promise.all([
       window.supabaseClient.from('employee_assets').select('id, employee_id, asset_type, description, serial_asset_no, date_issued, date_returned, handover_form_name').order('created_at', { ascending: true }),
-      window.supabaseClient.from('training_assignments').select('id, employee_id, resource_id, quarter, assigned_date, scheduled_date, due_date, status, completed_date, result_status, result_source, passed_date, training_valid_until, skills_to_develop').order('created_at', { ascending: true }),
+      window.supabaseClient.from('training_assignments').select('id, employee_id, resource_id, quarter, assigned_date, due_date, status, completed_date, result_status, result_source, passed_date, training_valid_until, skills_to_develop').order('created_at', { ascending: true }),
       window.supabaseClient.from('development_resources').select('id, title, category'),
       window.supabaseClient.from('development_skills').select('id, employee_id, competency, current_level, target_level, assessed_on').order('assessed_on', { ascending: false }),
       window.supabaseClient.from('development_plans').select('id, employee_id, goal, action_plan, due_date, status').order('due_date', { ascending: true }),
@@ -1779,7 +1779,7 @@ async function refreshReportData() {
     } else console.error('Could not refresh report assets', assetResult.error);
     if (!assignmentResult.error) {
       const localAssignments = reportAssignments.filter((assignment) => !isCloudId(assignment.id));
-      const cloudAssignments = (assignmentResult.data || []).map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter, assignedDate: assignment.assigned_date, scheduledDate: assignment.scheduled_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
+      const cloudAssignments = (assignmentResult.data || []).map((assignment) => ({ id: assignment.id, employeeId: assignment.employee_id, resourceId: assignment.resource_id, quarter: assignment.quarter, assignedDate: assignment.assigned_date, dueDate: assignment.due_date, status: assignment.status, completedDate: assignment.completed_date, resultStatus: assignment.result_status || 'Pending', resultSource: assignment.result_source || 'manual', passedDate: assignment.passed_date, trainingValidUntil: assignment.training_valid_until, skillsToDevelop: assignment.skills_to_develop || [] }));
       reportAssignments = [...localAssignments, ...cloudAssignments];
     } else console.error('Could not refresh report training assignments', assignmentResult.error);
     if (!resourceResult.error && resourceResult.data) {
@@ -1862,7 +1862,7 @@ function resourceAssignmentGroups() {
     records.push({ assignment, employee });
     assignmentsByResource.set(assignment.resourceId, records);
   });
-  return [...resourcesById.values()].filter((resource) => String(resource.category || '').trim().toLowerCase() !== 'tests').map((resource) => {
+  return [...resourcesById.values()].map((resource) => {
     const assignments = assignmentsByResource.get(resource.id) || [];
     const recipientCounts = new Map();
     assignments.forEach(({ employee }) => recipientCounts.set(employee.id, { employee, count: (recipientCounts.get(employee.id)?.count || 0) + 1 }));
@@ -1880,7 +1880,7 @@ function renderResourceAssignmentReport() {
   document.querySelector('#resourceReportMetrics').innerHTML = `<div><span>Resources</span><strong>${groups.length}</strong></div><div><span>Assignments</span><strong>${assignmentCount}</strong></div><div><span>Employees assigned</span><strong>${recipientIds.size}</strong></div>`;
   document.querySelector('#resourceReportRows').innerHTML = groups.map(({ resource, assignments, recipients, latest }) => {
     const recipientText = recipients.map(({ employee, count }) => `${employee.name}${count > 1 ? ` (${count})` : ''}`).join(', ') || 'Not assigned';
-    return `<tr><td>${escapeHtml(resource.title || 'Untitled resource')}</td><td>${escapeHtml(resource.category || 'Not recorded')}</td><td><strong>${assignments.length}</strong></td><td>${escapeHtml(recipientText)}</td><td>${escapeHtml(latest?.assignment.scheduledDate || '—')}</td><td>${escapeHtml(latest?.assignment.status || 'Not assigned')}</td></tr>`;
+    return `<tr><td>${escapeHtml(resource.title || 'Untitled resource')}</td><td>${escapeHtml(resource.category || 'Not recorded')}</td><td><strong>${assignments.length}</strong></td><td>${escapeHtml(recipientText)}</td><td>${escapeHtml(latest?.assignment.assignedDate || '—')}</td><td>${escapeHtml(latest?.assignment.status || 'Not assigned')}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty-state">No resources or assignments match this department.</td></tr>';
 }
 
