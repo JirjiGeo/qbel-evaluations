@@ -174,12 +174,29 @@ body .employee-section-tab {
 body .employee-section-tab.active { border-bottom-color: var(--workspace-green); color: var(--workspace-green); }
 body .employee-tab-panel[hidden] { display: none; }
 body .organization-chart-panel { overflow: hidden; }
+body.organization-chart-view #employeesOverview { display: flex; flex-direction: column; gap: 10px; width: 100%; height: 100vh; min-height: 0; padding: 14px 18px 12px !important; overflow: hidden; }
+body.organization-chart-view #employeesOverview > .topbar,
+body.organization-chart-view #employeesOverview > .employee-hero-banner,
+body.organization-chart-view #employeesOverview > .workforce-pulse { display: none !important; }
+body.organization-chart-view .employee-section-tabs { flex: none; margin: 0; }
+body.organization-chart-view #organizationChartSection { display: flex; flex: 1; flex-direction: column; min-height: 0; margin: 0; padding: 10px 0 0; overflow: hidden; border-top: 0; }
+body.organization-chart-view #organizationChartSection > .section-heading { flex: none; margin: 0 0 8px; }
+body.organization-chart-view #organizationChartSection .section-kicker,
+body.organization-chart-view #organizationChartSection .section-description { display: none; }
+body.organization-chart-view #organizationChartSection .section-heading h2 { margin: 0; font-size: 20px; }
+body.organization-chart-view .organization-chart-key { flex: none; margin-bottom: 8px; }
+body.organization-chart-view .organization-chart-tree { flex: 1 1 0; height: 0; min-height: 0; }
 body .organization-chart-count { color: var(--workspace-muted); font-size: 12px; }
 body .organization-chart-tree { max-width: 100%; overflow: auto; padding: 28px 20px 24px; border: 1px solid var(--workspace-line); border-radius: 8px; background-color: #f9fbfa; background-image: radial-gradient(#dce5e0 0.7px, transparent 0.7px); background-size: 18px 18px; }
 body .organization-tree,
 body .organization-tree-children { display: flex; align-items: flex-start; justify-content: center; min-width: max-content; margin: 0; padding: 0; list-style: none; }
 body .organization-tree > li { padding: 0; }
 body .organization-tree-children { margin: 0; }
+body .organization-tree-children.organization-tree-children-vertical { display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: min(100%, 460px); min-width: 0; margin: 12px auto 0; padding: 12px 0 0; border-top: 1px solid #b5c9bf; }
+body .organization-tree-children-vertical > .organization-chart-branch { width: 100%; padding: 0; text-align: left; }
+body .organization-tree-children-vertical > .organization-chart-branch::before,
+body .organization-tree-children-vertical > .organization-chart-branch::after { display: none; }
+body .organization-tree-children-vertical > .organization-chart-branch > .organization-node { width: 100%; min-height: 60px; }
 body .organization-chart-branch { position: relative; display: flex; flex: none; flex-direction: column; align-items: center; padding: 24px 12px 0; text-align: center; }
 body .organization-tree-children > .organization-chart-branch::before { position: absolute; top: 0; right: 0; left: 0; border-top: 2px solid #b5c9bf; content: ''; }
 body .organization-tree-children > .organization-chart-branch:first-child::before { left: 50%; }
@@ -220,6 +237,10 @@ body .organization-chart-zoom button:hover { border-color: #9db4a7; background: 
 body .organization-node-modal .organization-node-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 @media (max-width: 700px) {
+  body.organization-chart-view #employeesOverview { height: 100dvh; padding: 10px !important; }
+  body.organization-chart-view #organizationChartSection .section-heading { align-items: flex-start; }
+  body.organization-chart-view #organizationChartSection .heading-actions { justify-content: flex-start; }
+  body.organization-chart-view .organization-chart-tree { flex: 1; }
   body .employee-section-tabs { gap: 18px; }
   body .organization-node { align-items: flex-start; flex-direction: column; }
   body .organization-node-actions { flex-wrap: wrap; }
@@ -248,6 +269,7 @@ body .organization-node-modal .organization-node-fields { grid-template-columns:
   body.organization-chart-print-mode .organization-chart-tree { max-width: none; overflow: visible !important; padding: 12px 0; border: 0; border-radius: 0; background: #fff; zoom: 100% !important; }
   body.organization-chart-print-mode .organization-tree,
   body.organization-chart-print-mode .organization-tree-children { display: block; min-width: 0; margin: 0; padding: 0; }
+  body.organization-chart-print-mode .organization-tree { zoom: 100% !important; }
   body.organization-chart-print-mode .organization-tree-children { margin-left: 12px; padding-left: 12px; border-left: 1px solid #b5c9bf; }
   body.organization-chart-print-mode .organization-chart-branch { display: block; width: auto; padding: 5px 0 0 10px; text-align: left; break-inside: auto; }
   body.organization-chart-print-mode .organization-chart-branch::before,

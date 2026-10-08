@@ -116,6 +116,15 @@ function organizationChildren(parentId) {
   return organizationChart.filter((node) => (node.parentId || null) === parentId);
 }
 
+const verticalEngineeringReportLists = new Set([
+  'karashath-justin',
+  'mathew-samuel',
+  'site-team-leader-tba',
+  'azlan-pm',
+  'joy-yohannan',
+  'rashid-rakkaz'
+]);
+
 function renderOrganizationNode(node, ancestors) {
   if (ancestors.has(node.id)) return '';
   const nextAncestors = new Set(ancestors);
@@ -132,7 +141,7 @@ function renderOrganizationNode(node, ancestors) {
         <button type="button" class="organization-remove" data-org-action="remove" data-node-id="${escapeOrganizationText(node.id)}">Remove</button>
       </div>
     </article>
-    ${children.length ? `<details${ancestors.size === 0 ? ' open' : ''}><summary class="organization-children-toggle">${children.length} direct report${children.length === 1 ? '' : 's'}</summary><ul class="organization-tree-children">${children.map((child) => renderOrganizationNode(child, nextAncestors)).join('')}</ul></details>` : ''}
+    ${children.length ? `<details${ancestors.size <= 1 ? ' open' : ''}><summary class="organization-children-toggle">${children.length} direct report${children.length === 1 ? '' : 's'}</summary><ul class="organization-tree-children${verticalEngineeringReportLists.has(node.id) ? ' organization-tree-children-vertical' : ''}">${children.map((child) => renderOrganizationNode(child, nextAncestors)).join('')}</ul></details>` : ''}
   </li>`;
 }
 
@@ -141,6 +150,8 @@ function renderOrganizationChart() {
   organizationChartTree.innerHTML = roots.length
     ? `<ul class="organization-tree">${roots.map((node) => renderOrganizationNode(node, new Set())).join('')}</ul>`
     : '<p class="empty-state">No positions yet. Add a position to start the chart.</p>';
+  const chartContents = organizationChartTree.querySelector('.organization-tree');
+  if (chartContents) chartContents.style.zoom = `${organizationChartZoom.value}%`;
   const people = organizationChart.filter((node) => node.type !== 'group').length;
   const groups = organizationChart.length - people;
   organizationChartCount.textContent = `${people} people · ${groups} teams and departments`;
@@ -232,6 +243,7 @@ document.querySelector('#directoryTab').addEventListener('click', () => selectEm
 document.querySelector('#organizationChartTab').addEventListener('click', () => selectEmployeeSection('organization-chart'));
 
 function selectEmployeeSection(section) {
+  document.body.classList.toggle('organization-chart-view', section === 'organization-chart');
   document.querySelectorAll('[data-employee-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.employeePanel !== section;
   });
@@ -251,7 +263,8 @@ const organizationChartZoom = document.querySelector('#organizationChartZoom');
 function updateOrganizationChartZoom(value) {
   const zoom = Math.max(50, Math.min(125, Number(value)));
   organizationChartZoom.value = String(zoom);
-  organizationChartTree.style.zoom = `${zoom}%`;
+  const chartContents = organizationChartTree.querySelector('.organization-tree');
+  if (chartContents) chartContents.style.zoom = `${zoom}%`;
 }
 organizationChartZoom.addEventListener('input', () => updateOrganizationChartZoom(organizationChartZoom.value));
 document.querySelector('#organizationChartZoomOut').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) - 5));
@@ -260,7 +273,8 @@ document.querySelector('#organizationChartZoomReset').addEventListener('click', 
 document.querySelector('#printOrganizationChartButton').addEventListener('click', () => {
   if (organizationChartPrintState) return;
   const collapsedDetails = [...organizationChartTree.querySelectorAll('details:not([open])')];
-  organizationChartPrintState = { collapsedDetails, zoom: organizationChartTree.style.zoom };
+  const chartContents = organizationChartTree.querySelector('.organization-tree');
+  organizationChartPrintState = { collapsedDetails, chartContents, zoom: chartContents?.style.zoom || '' };
   collapsedDetails.forEach((details) => { details.open = true; });
   document.body.classList.add('organization-chart-print-mode');
   window.requestAnimationFrame(() => window.print());
@@ -268,7 +282,7 @@ document.querySelector('#printOrganizationChartButton').addEventListener('click'
 window.addEventListener('afterprint', () => {
   if (!organizationChartPrintState) return;
   organizationChartPrintState.collapsedDetails.forEach((details) => { details.open = false; });
-  organizationChartTree.style.zoom = organizationChartPrintState.zoom;
+  if (organizationChartPrintState.chartContents) organizationChartPrintState.chartContents.style.zoom = organizationChartPrintState.zoom;
   organizationChartPrintState = null;
   document.body.classList.remove('organization-chart-print-mode');
 });
