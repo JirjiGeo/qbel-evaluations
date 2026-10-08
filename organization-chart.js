@@ -196,6 +196,161 @@ function renderOrganizationPrintPages() {
     </section>`;
 }
 
+function wrapOrganizationSvgText(value, maxCharacters) {
+  const words = String(value || '').trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  words.forEach((word) => {
+    const nextLine = line ? `${line} ${word}` : word;
+    if (line && nextLine.length > maxCharacters) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = nextLine;
+    }
+  });
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
+function buildOrganizationChartSvg() {
+  const cardWidth = 260;
+  const horizontalGap = 24;
+  const verticalGap = 46;
+  const verticalItemGap = 14;
+  const sideMargin = 72;
+  const topMargin = 142;
+  const rootNodes = organizationChildren(null);
+  const records = [];
+  const links = [];
+
+  function measureCard(node) {
+    const nameLines = wrapOrganizationSvgText(node.name, 27);
+    const designationLines = wrapOrganizationSvgText(node.designation || (node.type === 'group' ? 'Department or team' : 'Designation not set'), 31);
+    const textHeight = nameLines.length * 17 + designationLines.length * 14;
+    return { width: cardWidth, height: Math.max(72, 24 + textHeight + 12), nameLines, designationLines };
+  }
+
+  function measureSubtree(node, ancestors = new Set()) {
+    const nextAncestors = new Set(ancestors);
+    nextAncestors.add(node.id);
+    const children = organizationChildren(node.id).filter((child) => !nextAncestors.has(child.id));
+    const card = measureCard(node);
+    if (!children.length) return { ...card, children: [], vertical: false };
+    const childSizes = children.map((child) => measureSubtree(child, nextAncestors));
+    const vertical = isVerticalEngineeringRoster(node, children, nextAncestors);
+    if (vertical) {
+      const childrenHeight = childSizes.reduce((total, child) => total + child.height, 0) + verticalItemGap * (childSizes.length - 1);
+      return {
+        ...card,
+        children,
+        childSizes,
+        vertical,
+        width: Math.max(card.width, ...childSizes.map((child) => child.width)),
+        height: card.height + verticalGap + childrenHeight
+      };
+    }
+    const childrenWidth = childSizes.reduce((total, child) => total + child.width, 0) + horizontalGap * (childSizes.length - 1);
+    return {
+      ...card,
+      children,
+      childSizes,
+      vertical,
+      width: Math.max(card.width, childrenWidth),
+      height: card.height + verticalGap + Math.max(...childSizes.map((child) => child.height))
+    };
+  }
+
+  function placeNode(node, layout, left, top) {
+    const cardX = left + (layout.width - cardWidth) / 2;
+    const record = { node, x: cardX, y: top, width: cardWidth, height: measureCard(node).height, layout };
+    records.push(record);
+    if (!layout.children.length) return record;
+
+    const parentCenter = cardX + cardWidth / 2;
+    const childrenTop = top + record.height + verticalGap;
+    if (layout.vertical) {
+      let childTop = childrenTop;
+      layout.children.forEach((child, index) => {
+        const childLayout = layout.childSizes[index];
+        const childLeft = left + (layout.width - childLayout.width) / 2;
+        const childRecord = placeNode(child, childLayout, childLeft, childTop);
+        const childCenter = childRecord.x + cardWidth / 2;
+        const branchY = childTop - verticalItemGap / 2;
+        links.push(`M ${parentCenter} ${top + record.height} V ${branchY} H ${childCenter} V ${childTop}`);
+        childTop += childLayout.height + verticalItemGap;
+      });
+      return record;
+    }
+
+    const childrenWidth = layout.childSizes.reduce((total, child) => total + child.width, 0) + horizontalGap * (layout.childSizes.length - 1);
+    let childLeft = left + (layout.width - childrenWidth) / 2;
+    const childCenters = [];
+    layout.children.forEach((child, index) => {
+      const childLayout = layout.childSizes[index];
+      const childRecord = placeNode(child, childLayout, childLeft, childrenTop);
+      childCenters.push(childRecord.x + cardWidth / 2);
+      childLeft += childLayout.width + horizontalGap;
+    });
+    const branchY = top + record.height + verticalGap / 2;
+    links.push(`M ${parentCenter} ${top + record.height} V ${branchY}`);
+    links.push(`M ${Math.min(...childCenters)} ${branchY} H ${Math.max(...childCenters)}`);
+    childCenters.forEach((center) => links.push(`M ${center} ${branchY} V ${childrenTop}`));
+    return record;
+  }
+
+  const rootLayouts = rootNodes.map((node) => measureSubtree(node));
+  const rootWidth = rootLayouts.reduce((total, layout) => total + layout.width, 0) + horizontalGap * Math.max(0, rootLayouts.length - 1);
+  const contentWidth = Math.max(cardWidth, rootWidth);
+  const contentHeight = rootLayouts.length ? Math.max(...rootLayouts.map((layout) => layout.height)) : 0;
+  const width = Math.ceil(contentWidth + sideMargin * 2);
+  const height = Math.ceil(topMargin + contentHeight + sideMargin);
+  let rootLeft = sideMargin + (contentWidth - rootWidth) / 2;
+  rootNodes.forEach((node, index) => {
+    const layout = rootLayouts[index];
+    placeNode(node, layout, rootLeft, topMargin);
+    rootLeft += layout.width + horizontalGap;
+  });
+
+  const connectorMarkup = links.map((path) => `<path d="${path}" fill="none" stroke="#8fa99a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  const nodeMarkup = records.map(({ node, x, y, height: nodeHeight, layout }) => {
+    const { nameLines, designationLines } = layout;
+    const isRoot = !node.parentId;
+    const isGroup = node.type === 'group';
+    const fill = isRoot ? '#124d37' : isGroup ? '#fffaf1' : '#ffffff';
+    const stroke = isRoot ? '#124d37' : isGroup ? '#d8bd94' : '#d0dfd7';
+    const accent = isRoot ? '#124d37' : isGroup ? '#c07843' : '#287a58';
+    const textColor = isRoot ? '#ffffff' : '#202b29';
+    const subtitleColor = isRoot ? '#e0eee6' : '#64746d';
+    const iconFill = isGroup ? '#f3e4cc' : isRoot ? '#356b53' : '#e6f2eb';
+    const iconText = isGroup ? '#9b6033' : '#236d4c';
+    const textX = x + 55;
+    const firstNameY = y + 24 + Math.max(0, (nodeHeight - 24 - nameLines.length * 17 - designationLines.length * 14) / 2);
+    const nameMarkup = nameLines.map((line, index) => `<tspan x="${textX}" dy="${index === 0 ? 0 : 17}">${escapeOrganizationText(line)}</tspan>`).join('');
+    const roleStartY = firstNameY + nameLines.length * 17;
+    const roleMarkup = designationLines.map((line, index) => `<tspan x="${textX}" dy="${index === 0 ? 0 : 14}">${escapeOrganizationText(line)}</tspan>`).join('');
+    return `<g>
+      <title>${escapeOrganizationText(node.name)}: ${escapeOrganizationText(node.designation || (isGroup ? 'Department or team' : 'Designation not set'))}</title>
+      <rect x="${x}" y="${y}" width="${cardWidth}" height="${nodeHeight}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>
+      <path d="M ${x + 7} ${y + 2} H ${x + cardWidth - 7}" stroke="${accent}" stroke-width="4" stroke-linecap="round"/>
+      <rect x="${x + 13}" y="${y + (nodeHeight - 30) / 2}" width="30" height="30" rx="${isGroup ? 6 : 15}" fill="${iconFill}"/>
+      <text x="${x + 28}" y="${y + nodeHeight / 2 + 5}" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="${iconText}">${isGroup ? '&#9638;' : '&#9679;'}</text>
+      <text x="${textX}" y="${firstNameY}" font-family="'DM Sans', Arial, sans-serif" font-size="13" font-weight="700" fill="${textColor}">${nameMarkup}</text>
+      <text x="${textX}" y="${roleStartY}" font-family="'DM Sans', Arial, sans-serif" font-size="11" fill="${subtitleColor}">${roleMarkup}</text>
+    </g>`;
+  }).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="chartTitle chartDescription">
+    <title id="chartTitle">QBEL FM &amp; Technical Services Organization Chart</title>
+    <desc id="chartDescription">A connected organization chart with ${records.length} positions.</desc>
+    <rect width="100%" height="100%" fill="#ffffff"/>
+    <text x="${sideMargin}" y="48" font-family="'DM Sans', Arial, sans-serif" font-size="11" font-weight="700" fill="#547064">QBEL FM &amp; TECHNICAL SERVICES</text>
+    <text x="${sideMargin}" y="88" font-family="'Space Grotesk', Arial, sans-serif" font-size="26" font-weight="700" fill="#202b29">Company Organization Chart</text>
+    <line x1="${sideMargin}" y1="108" x2="${width - sideMargin}" y2="108" stroke="#d5e1da"/>
+    <g>${connectorMarkup}</g><g>${nodeMarkup}</g>
+  </svg>`;
+}
+
 function centerOrganizationChartRoot() {
   const rootCard = organizationChartTree.querySelector('.organization-tree > .organization-chart-branch > .organization-node');
   if (!rootCard) return;
@@ -309,6 +464,17 @@ organizationChartZoom.addEventListener('input', () => updateOrganizationChartZoo
 document.querySelector('#organizationChartZoomOut').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) - 5));
 document.querySelector('#organizationChartZoomIn').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) + 5));
 document.querySelector('#organizationChartZoomReset').addEventListener('click', () => updateOrganizationChartZoom(75));
+document.querySelector('#downloadOrganizationChartSvgButton').addEventListener('click', () => {
+  const svgBlob = new Blob([buildOrganizationChartSvg()], { type: 'image/svg+xml;charset=utf-8' });
+  const downloadUrl = URL.createObjectURL(svgBlob);
+  const downloadLink = document.createElement('a');
+  downloadLink.href = downloadUrl;
+  downloadLink.download = `qbel-organization-chart-${new Date().toISOString().slice(0, 10)}.svg`;
+  document.body.append(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+});
 document.querySelector('#printOrganizationChartButton').addEventListener('click', () => {
   if (organizationChartPrintState) return;
   renderOrganizationPrintPages();
