@@ -189,27 +189,11 @@ function renderOrganizationPrintNode(node, maxDepth, depth = 0, ancestors = new 
 
 function renderOrganizationPrintPages() {
   const roots = organizationChildren(null);
-  const pages = [{
-    title: 'Company leadership',
-    nodes: roots,
-    maxDepth: 1
-  }];
-  roots.forEach((root) => {
-    organizationChildren(root.id).forEach((node) => {
-      if (organizationChildren(node.id).length) {
-        pages.push({
-          title: node.designation ? `${node.name} | ${node.designation}` : node.name,
-          nodes: [node],
-          maxDepth: Number.POSITIVE_INFINITY
-        });
-      }
-    });
-  });
-  organizationChartPrintPages.innerHTML = pages.map((page) => `
+  organizationChartPrintPages.innerHTML = `
     <section class="organization-chart-print-page">
-      <header class="organization-chart-print-heading"><span>QBEL FM &amp; Technical Services</span><h1>${escapeOrganizationText(page.title)}</h1></header>
-      <ul class="organization-chart-print-tree">${page.nodes.map((node) => renderOrganizationPrintNode(node, page.maxDepth)).join('')}</ul>
-    </section>`).join('');
+      <header class="organization-chart-print-heading"><span>QBEL FM &amp; Technical Services</span><h1>Company Organization Chart</h1></header>
+      <ul class="organization-chart-print-tree">${roots.map((node) => renderOrganizationPrintNode(node, Number.POSITIVE_INFINITY)).join('')}</ul>
+    </section>`;
 }
 
 function centerOrganizationChartRoot() {
@@ -338,7 +322,7 @@ window.addEventListener('beforeprint', () => {
   organizationChartPrintPages.querySelectorAll('.organization-chart-print-page').forEach((page) => {
     const chart = page.querySelector('.organization-chart-print-tree');
     chart.style.zoom = '100%';
-    const availableWidth = Math.max(1, Math.min(1450, page.clientWidth - 24));
+    const availableWidth = Math.max(1, page.clientWidth - 24);
     const availableHeight = Math.max(1, page.clientHeight - 100);
     const scale = Math.min(1, availableWidth / chart.scrollWidth, availableHeight / chart.scrollHeight);
     chart.style.zoom = `${Math.round(scale * 100)}%`;

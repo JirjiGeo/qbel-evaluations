@@ -251,8 +251,8 @@ body .organization-node-modal .organization-node-fields { grid-template-columns:
 }
 
 @page {
-  size: A3 landscape;
-  margin: 10mm;
+  size: A0 landscape;
+  margin: 12mm;
 }
 
 body .organization-chart-print-pages { display: none; }
@@ -266,11 +266,10 @@ body .organization-chart-print-pages { display: none; }
   body.organization-chart-print-mode #organizationChartSection { display: block !important; padding: 0; border: 0; visibility: visible !important; }
   body.organization-chart-print-mode #organizationChartSection > :not(#organizationChartPrintPages) { display: none !important; }
   body.organization-chart-print-mode .organization-chart-print-pages { display: block !important; }
-  body.organization-chart-print-mode .organization-chart-print-page { width: 100%; min-height: 180mm; padding: 0; break-after: page; page-break-after: always; break-inside: avoid; }
-  body.organization-chart-print-mode .organization-chart-print-page:last-child { break-after: auto; page-break-after: auto; }
-  body.organization-chart-print-mode .organization-chart-print-heading { margin: 0 0 22px; padding: 0 0 10px; border-bottom: 1px solid #d5e1da; }
+  body.organization-chart-print-mode .organization-chart-print-page { width: 1165mm; height: 817mm; min-height: 817mm; padding: 0; break-after: auto; page-break-after: auto; break-inside: avoid; }
+  body.organization-chart-print-mode .organization-chart-print-heading { margin: 0 0 28px; padding: 0 0 12px; border-bottom: 1px solid #d5e1da; }
   body.organization-chart-print-mode .organization-chart-print-heading > span { color: #547064; font-size: 9px; font-weight: 700; text-transform: uppercase; }
-  body.organization-chart-print-mode .organization-chart-print-heading h1 { margin: 5px 0 0; color: #202b29; font: 600 22px/1.2 'Space Grotesk', sans-serif; }
+  body.organization-chart-print-mode .organization-chart-print-heading h1 { margin: 5px 0 0; color: #202b29; font: 600 26px/1.2 'Space Grotesk', sans-serif; }
   body.organization-chart-print-mode .organization-chart-print-tree,
   body.organization-chart-print-mode .organization-chart-print-children { display: flex; align-items: flex-start; justify-content: center; min-width: max-content; margin: 0; padding: 0; list-style: none; }
   body.organization-chart-print-mode .organization-chart-print-branch { position: relative; display: flex; flex: none; flex-direction: column; align-items: center; padding: 28px 8px 0; text-align: center; }
