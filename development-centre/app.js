@@ -82,6 +82,9 @@ async function loadResourceFile(resource) {
 function isTableMissingError(error) {
   return Boolean(error && (error.code === '42P01' || /Could not find (?:the )?table .*training_documents|training_documents.*does not exist/i.test(error.message || '')));
 }
+function isMissingAttendanceColumnError(error) {
+  return Boolean(error && /(?:Could not find the )?'attended' column of 'training_assignments'|column ["']?attended["']? .*does not exist/i.test(error.message || ''));
+}
 function notify(message) { const toast = $('#devToast'); toast.textContent = message; toast.classList.add('show'); window.setTimeout(() => toast.classList.remove('show'), 2400); }
 function renderEmployeeLearning() {
   const activeEmployees = employees();
@@ -579,7 +582,9 @@ $('#trainingSessionForm').addEventListener('submit', async (event) => {
     notify(finish ? 'Training completed. Absent employees marked Failed.' : 'Attendance saved.');
     if (finish) switchView('tracker');
   } catch (error) {
-    $('#sessionError').textContent = `Could not save training: ${error.message}`;
+    $('#sessionError').textContent = isMissingAttendanceColumnError(error)
+      ? 'Supabase is missing the attendance field. Run scripts/training-attendance.sql in the Supabase SQL Editor, then reload this page.'
+      : `Could not save training: ${error.message}`;
   } finally {
     sessionSaving = false;
     $('#trainingSessionForm').querySelectorAll('button,input,select').forEach((control) => { control.disabled = false; });
