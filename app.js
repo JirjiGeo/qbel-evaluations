@@ -1862,7 +1862,7 @@ function resourceAssignmentGroups() {
     records.push({ assignment, employee });
     assignmentsByResource.set(assignment.resourceId, records);
   });
-  return [...resourcesById.values()].map((resource) => {
+  return [...resourcesById.values()].filter((resource) => String(resource.category || '').trim().toLowerCase() !== 'tests').map((resource) => {
     const assignments = assignmentsByResource.get(resource.id) || [];
     const recipientCounts = new Map();
     assignments.forEach(({ employee }) => recipientCounts.set(employee.id, { employee, count: (recipientCounts.get(employee.id)?.count || 0) + 1 }));
