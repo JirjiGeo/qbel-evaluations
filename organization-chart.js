@@ -99,6 +99,7 @@ let organizationChart = readOrganizationChart();
 let editingOrganizationNodeId = null;
 
 const organizationChartTree = document.querySelector('#organizationChartTree');
+const organizationChartPrintPages = document.querySelector('#organizationChartPrintPages');
 const organizationChartCount = document.querySelector('#organizationChartCount');
 const organizationNodeModal = document.querySelector('#organizationNodeModal');
 const organizationNodeForm = document.querySelector('#organizationNodeForm');
@@ -165,6 +166,50 @@ function renderOrganizationChart() {
   const people = organizationChart.filter((node) => node.type !== 'group').length;
   const groups = organizationChart.length - people;
   organizationChartCount.textContent = `${people} people · ${groups} teams and departments`;
+}
+
+function renderOrganizationPrintNode(node, maxDepth, depth = 0, ancestors = new Set()) {
+  if (ancestors.has(node.id)) return '';
+  const nextAncestors = new Set(ancestors);
+  nextAncestors.add(node.id);
+  const children = depth < maxDepth ? organizationChildren(node.id) : [];
+  const verticalReports = isVerticalEngineeringRoster(node, children, nextAncestors);
+  const designation = node.designation || (node.type === 'group' ? 'Department or team' : 'Designation not set');
+  const childrenMarkup = children.length
+    ? `<details open><summary></summary><ul class="organization-chart-print-children${verticalReports ? ' organization-tree-children-vertical' : ''}">${children.map((child) => renderOrganizationPrintNode(child, maxDepth, depth + 1, nextAncestors)).join('')}</ul></details>`
+    : '';
+  return `<li class="organization-chart-print-branch">
+    <article class="organization-chart-print-node${node.type === 'group' ? ' is-group' : ''}">
+      <span class="organization-node-mark" aria-hidden="true">${node.type === 'group' ? '&#9638;' : '&#9679;'}</span>
+      <div class="organization-node-identity"><strong>${escapeOrganizationText(node.name)}</strong><small>${escapeOrganizationText(designation)}</small></div>
+    </article>
+    ${childrenMarkup}
+  </li>`;
+}
+
+function renderOrganizationPrintPages() {
+  const roots = organizationChildren(null);
+  const pages = [{
+    title: 'Company leadership',
+    nodes: roots,
+    maxDepth: 1
+  }];
+  roots.forEach((root) => {
+    organizationChildren(root.id).forEach((node) => {
+      if (organizationChildren(node.id).length) {
+        pages.push({
+          title: node.designation ? `${node.name} | ${node.designation}` : node.name,
+          nodes: [node],
+          maxDepth: Number.POSITIVE_INFINITY
+        });
+      }
+    });
+  });
+  organizationChartPrintPages.innerHTML = pages.map((page) => `
+    <section class="organization-chart-print-page">
+      <header class="organization-chart-print-heading"><span>QBEL FM &amp; Technical Services</span><h1>${escapeOrganizationText(page.title)}</h1></header>
+      <ul class="organization-chart-print-tree">${page.nodes.map((node) => renderOrganizationPrintNode(node, page.maxDepth)).join('')}</ul>
+    </section>`).join('');
 }
 
 function centerOrganizationChartRoot() {
@@ -282,17 +327,26 @@ document.querySelector('#organizationChartZoomIn').addEventListener('click', () 
 document.querySelector('#organizationChartZoomReset').addEventListener('click', () => updateOrganizationChartZoom(75));
 document.querySelector('#printOrganizationChartButton').addEventListener('click', () => {
   if (organizationChartPrintState) return;
-  const collapsedDetails = [...organizationChartTree.querySelectorAll('details:not([open])')];
-  const chartContents = organizationChartTree.querySelector('.organization-tree');
-  organizationChartPrintState = { collapsedDetails, chartContents, zoom: chartContents?.style.zoom || '' };
-  collapsedDetails.forEach((details) => { details.open = true; });
+  renderOrganizationPrintPages();
+  organizationChartPrintPages.setAttribute('aria-hidden', 'false');
+  organizationChartPrintState = true;
   document.body.classList.add('organization-chart-print-mode');
   window.requestAnimationFrame(() => window.print());
 });
+window.addEventListener('beforeprint', () => {
+  if (!organizationChartPrintState) return;
+  organizationChartPrintPages.querySelectorAll('.organization-chart-print-page').forEach((page) => {
+    const chart = page.querySelector('.organization-chart-print-tree');
+    chart.style.zoom = '100%';
+    const availableWidth = Math.max(1, Math.min(1450, page.clientWidth - 24));
+    const availableHeight = Math.max(1, page.clientHeight - 100);
+    const scale = Math.min(1, availableWidth / chart.scrollWidth, availableHeight / chart.scrollHeight);
+    chart.style.zoom = `${Math.round(scale * 100)}%`;
+  });
+});
 window.addEventListener('afterprint', () => {
   if (!organizationChartPrintState) return;
-  organizationChartPrintState.collapsedDetails.forEach((details) => { details.open = false; });
-  if (organizationChartPrintState.chartContents) organizationChartPrintState.chartContents.style.zoom = organizationChartPrintState.zoom;
+  organizationChartPrintPages.setAttribute('aria-hidden', 'true');
   organizationChartPrintState = null;
   document.body.classList.remove('organization-chart-print-mode');
 });
