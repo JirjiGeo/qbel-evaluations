@@ -109,8 +109,9 @@ function renderOrganizationNode(node, ancestors) {
   nextAncestors.add(node.id);
   const children = organizationChildren(node.id);
   const designation = node.designation || (node.type === 'group' ? 'Department or team' : 'Designation not set');
-  return `<li>
+  return `<li class="organization-chart-branch">
     <article class="organization-node${node.type === 'group' ? ' is-group' : ''}">
+      <span class="organization-node-mark" aria-hidden="true">${node.type === 'group' ? '&#9638;' : '&#9679;'}</span>
       <div class="organization-node-identity"><strong>${escapeOrganizationText(node.name)}</strong><small>${escapeOrganizationText(designation)}</small></div>
       <div class="organization-node-actions">
         <button type="button" data-org-action="add" data-node-id="${escapeOrganizationText(node.id)}" aria-label="Add a report to ${escapeOrganizationText(node.name)}">Add report</button>
@@ -221,6 +222,16 @@ function selectEmployeeSection(section) {
 }
 
 document.querySelector('#addOrganizationPositionButton').addEventListener('click', () => openOrganizationNodeEditor());
+const organizationChartZoom = document.querySelector('#organizationChartZoom');
+function updateOrganizationChartZoom(value) {
+  const zoom = Math.max(50, Math.min(125, Number(value)));
+  organizationChartZoom.value = String(zoom);
+  organizationChartTree.style.zoom = `${zoom}%`;
+}
+organizationChartZoom.addEventListener('input', () => updateOrganizationChartZoom(organizationChartZoom.value));
+document.querySelector('#organizationChartZoomOut').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) - 5));
+document.querySelector('#organizationChartZoomIn').addEventListener('click', () => updateOrganizationChartZoom(Number(organizationChartZoom.value) + 5));
+document.querySelector('#organizationChartZoomReset').addEventListener('click', () => updateOrganizationChartZoom(100));
 document.querySelector('#closeOrganizationNodeModal').addEventListener('click', closeOrganizationNodeEditor);
 document.querySelector('#cancelOrganizationNodeModal').addEventListener('click', closeOrganizationNodeEditor);
 organizationNodeModal.addEventListener('click', (event) => {
